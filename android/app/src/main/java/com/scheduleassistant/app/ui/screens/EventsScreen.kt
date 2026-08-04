@@ -45,7 +45,7 @@ fun EventsScreen(
     val events by vm.events.collectAsState()
 
     val grouped = events
-        .sortedWith(compareBy({ it.date }, { if (it.allDay) "00:00" else it.start.ifBlank { "99:99" } })
+        .sortedWith(compareBy<Event>({ it.date }, { if (it.allDay) "00:00" else it.start.ifBlank { "99:99" } })
             .thenBy { it.title })
         .groupBy { it.date }
 

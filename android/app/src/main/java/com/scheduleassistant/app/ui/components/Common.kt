@@ -72,7 +72,7 @@ fun ChipGroup(
         options.forEach { (value, label) ->
             FilterChip(
                 selected = selected == value,
-                onSelectedChange = { onSelect(value) },
+                onClick = { onSelect(value) },
                 label = { Text(label) }
             )
         }

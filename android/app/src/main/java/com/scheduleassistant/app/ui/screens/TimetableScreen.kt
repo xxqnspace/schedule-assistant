@@ -103,7 +103,7 @@ fun TimetableScreen(
             }
         }
 
-        items(sections) { sec ->
+        items(items = sections) { sec ->
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically

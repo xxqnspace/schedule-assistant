@@ -105,7 +105,7 @@ fun getDayTimeline(
         )
     }
 
-    return (dayCourses + dayEvents).sortedWith(compareBy { if (it.allDay) 0 else 1 }.thenBy { it.start ?: "" })
+    return (dayCourses + dayEvents).sortedWith(compareBy<TimelineItem> { if (it.allDay) 0 else 1 }.thenBy { it.start ?: "" })
 }
 
 /** 课表网格用：取某星期、某奇偶类型下某节次的课程 */
