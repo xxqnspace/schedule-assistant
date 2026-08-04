@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 直接使用网页端 PWA 图标作为自适应图标前景，背景沿用主题蓝 -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/ic_web_icon"
+    android:gravity="fill" />

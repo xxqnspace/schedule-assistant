@@ -1,0 +1,10 @@
+# 本仓库仅包含「日程助手」安卓原生应用与 GitHub Actions 构建工作流。
+# 顶层忽略一切，仅放行 android/ 与 .github/（网页端源码不纳入此仓库）。
+
+*
+!.gitignore
+!README.md
+!android/
+!android/**
+!.github/
+!.github/**

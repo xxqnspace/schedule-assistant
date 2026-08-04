@@ -1,0 +1,17 @@
+# Gradle / Android 构建产物
+.gradle/
+android/.gradle/
+build/
+app/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 仅忽略本地生成的 keystore，CI 使用 debug 默认签名
+*.jks
+*.keystore
+
+# IDE
+*.iml
+.idea/

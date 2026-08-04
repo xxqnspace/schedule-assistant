@@ -1,0 +1,20 @@
+#!/bin/sh
+# Gradle 启动脚本（POSIX）。
+# 说明：gradle-wrapper.jar 已随仓库提交，因此 `./gradlew` 可直接运行（会自动下载 Gradle 8.9）。
+# 若 jar 意外缺失，本脚本会回退到系统已安装的 `gradle` 命令。
+
+APP_HOME=$( cd "${0%/*}" >/dev/null 2>&1 && pwd -P ) || exit 1
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if [ -f "$WRAPPER_JAR" ]; then
+  exec "$JAVA_HOME/bin/java" -jar "$WRAPPER_JAR" "$@"
+else
+  if command -v gradle >/dev/null 2>&1; then
+    echo "未检测到 gradle-wrapper.jar，使用系统已安装的 gradle 构建。"
+    exec gradle "$@"
+  else
+    echo "未找到 gradle-wrapper.jar，也没有安装 gradle。" >&2
+    echo "请用 Android Studio 打开本项目（会自动生成 wrapper），或先安装 Gradle 后执行 \`gradle wrapper\`。" >&2
+    exit 1
+  fi
+fi
