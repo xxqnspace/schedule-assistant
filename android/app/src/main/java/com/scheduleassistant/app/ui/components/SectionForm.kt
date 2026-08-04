@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -38,9 +39,9 @@ fun SectionFormSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
-    var name by remember { mutableStateOf(initial?.name ?: "") }
-    var start by remember { mutableStateOf(initial?.start ?: "08:00") }
-    var end by remember { mutableStateOf(initial?.end ?: "08:45") }
+    var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
+    var start by rememberSaveable { mutableStateOf(initial?.start ?: "08:00") }
+    var end by rememberSaveable { mutableStateOf(initial?.end ?: "08:45") }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(

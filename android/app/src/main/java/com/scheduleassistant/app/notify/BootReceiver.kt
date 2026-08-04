@@ -6,8 +6,9 @@ import android.content.Intent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
-/** 开机 / 应用更新后，重新注册本地提醒 */
+/** 开机 / 应用更新后，重新注册本地提醒。修复：M8 增加 8 秒超时护栏，避免 goAsync 超时被杀。 */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
@@ -15,7 +16,11 @@ class BootReceiver : BroadcastReceiver() {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    ReminderScheduler.scheduleAll(context.applicationContext)
+                    withTimeout(8000) {
+                        ReminderScheduler.scheduleAll(context.applicationContext)
+                    }
+                } catch (_: Exception) {
+                    // 超时或失败：不阻塞系统，下次开机/应用启动会再尝试
                 } finally {
                     pendingResult.finish()
                 }

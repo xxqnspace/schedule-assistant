@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -39,18 +40,20 @@ fun CourseFormSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var name by remember { mutableStateOf(initial?.name ?: "") }
-    var weekday by remember { mutableStateOf((initial?.weekday ?: 1).toString()) }
-    var weekType by remember { mutableStateOf(initial?.weekType ?: "every") }
-    var sectionId by remember {
+    var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
+    var weekday by rememberSaveable { mutableStateOf((initial?.weekday ?: 1).toString()) }
+    var weekType by rememberSaveable { mutableStateOf(initial?.weekType ?: "every") }
+    var sectionId by rememberSaveable {
         mutableStateOf(
             initial?.sectionId ?: sections.firstOrNull()?.id ?: ""
         )
     }
-    var location by remember { mutableStateOf(initial?.location ?: "") }
-    var cls by remember { mutableStateOf(initial?.cls ?: "") }
-    var color by remember { mutableStateOf(initial?.color?.ifBlank { COURSE_COLORS[0] } ?: COURSE_COLORS[0]) }
-    var note by remember { mutableStateOf(initial?.note ?: "") }
+    var location by rememberSaveable { mutableStateOf(initial?.location ?: "") }
+    // 修复（H3）：教师字段保留原值，不再硬编码清空
+    var teacher by rememberSaveable { mutableStateOf(initial?.teacher ?: "") }
+    var cls by rememberSaveable { mutableStateOf(initial?.cls ?: "") }
+    var color by rememberSaveable { mutableStateOf(initial?.color?.ifBlank { COURSE_COLORS[0] } ?: COURSE_COLORS[0]) }
+    var note by rememberSaveable { mutableStateOf(initial?.note ?: "") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -92,6 +95,11 @@ fun CourseFormSheet(
                         LabeledTextField("上课地点", location, { location = it }, placeholder = "如：教三 301")
                     }
                     Column(Modifier.weight(1f)) {
+                        LabeledTextField("教师", teacher, { teacher = it }, placeholder = "可选")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.weight(1f)) {
                         LabeledTextField("班级", cls, { cls = it }, placeholder = "1-15")
                     }
                 }
@@ -120,7 +128,7 @@ fun CourseFormSheet(
                                 id = initial?.id ?: uid("c"),
                                 name = name.trim(),
                                 location = location.trim(),
-                                teacher = "",
+                                teacher = teacher.trim(),
                                 cls = cls.trim(),
                                 weekday = weekday.toIntOrNull() ?: 1,
                                 weekType = weekType,

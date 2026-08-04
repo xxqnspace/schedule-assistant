@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,20 +41,20 @@ fun EventFormSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
-    var title by remember { mutableStateOf(initial?.title ?: "") }
-    var date by remember { mutableStateOf(initial?.date ?: nowDateStr()) }
-    var allDay by remember { mutableStateOf(initial?.allDay ?: false) }
-    var start by remember { mutableStateOf(initial?.start ?: "09:00") }
-    var end by remember { mutableStateOf(initial?.end ?: "10:00") }
-    var location by remember { mutableStateOf(initial?.location ?: "") }
-    var type by remember { mutableStateOf(initial?.type ?: "work") }
-    var color by remember {
+    var title by rememberSaveable { mutableStateOf(initial?.title ?: "") }
+    var date by rememberSaveable { mutableStateOf(initial?.date ?: nowDateStr()) }
+    var allDay by rememberSaveable { mutableStateOf(initial?.allDay ?: false) }
+    var start by rememberSaveable { mutableStateOf(initial?.start ?: "09:00") }
+    var end by rememberSaveable { mutableStateOf(initial?.end ?: "10:00") }
+    var location by rememberSaveable { mutableStateOf(initial?.location ?: "") }
+    var type by rememberSaveable { mutableStateOf(initial?.type ?: "work") }
+    var color by rememberSaveable {
         mutableStateOf(
             initial?.color?.ifBlank { COURSE_COLORS[4] } ?: COURSE_COLORS[4]
         )
     }
-    var note by remember { mutableStateOf(initial?.note ?: "") }
-    var reminder by remember { mutableStateOf(initial?.reminder?.toString() ?: "") }
+    var note by rememberSaveable { mutableStateOf(initial?.note ?: "") }
+    var reminder by rememberSaveable { mutableStateOf(initial?.reminder?.toString() ?: "") }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -115,7 +116,10 @@ fun EventFormSheet(
                 LabeledTextField("地点", location, { location = it }, placeholder = "可选")
                 LabeledTextField(
                     "提醒提前（分钟，留空用默认 $defaultReminder）",
-                    reminder, { reminder = it.filter { ch -> ch.isDigit() } }, placeholder = "默认 $defaultReminder 分钟"
+                    reminder,
+                    // 修复（M14）：仅数字且限长，避免超大值溢出导致提醒静默丢失
+                    { reminder = it.filter { ch -> ch.isDigit() }.take(5) },
+                    placeholder = "默认 $defaultReminder 分钟"
                 )
                 FormSectionTitle("颜色")
                 ColorSwatchRow(color) { color = it }
@@ -143,7 +147,7 @@ fun EventFormSheet(
                                 location = location.trim(),
                                 color = color,
                                 note = note.trim(),
-                                reminder = reminder.toIntOrNull(),
+                                reminder = reminder.toIntOrNull()?.coerceIn(0, 10080),
                                 type = type
                             )
                         )
@@ -154,4 +158,3 @@ fun EventFormSheet(
         }
     }
 }
-

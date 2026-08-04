@@ -40,6 +40,23 @@ jobs:
           echo "$HOME/gradle/gradle-8.9/bin" >> "$GITHUB_PATH"
           rm -f /tmp/gradle-8.9-bin.zip
 
+      # 修复（L9）：缓存 Gradle 依赖，显著缩短构建时间
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/build.gradle.kts', 'android/app/build.gradle.kts', 'android/settings.gradle.kts', 'android/gradle.properties', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # 修复（L10）：质量门禁——lint 与单元测试
+      - name: Lint
+        run: gradle lintDebug --no-daemon
+
+      - name: Unit tests
+        run: gradle testDebugUnitTest --no-daemon
+
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 

@@ -1,6 +1,7 @@
 package com.scheduleassistant.app.data
 
 import android.content.Context
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -14,6 +15,8 @@ import com.scheduleassistant.app.data.model.Meta
 import com.scheduleassistant.app.data.model.Override
 import com.scheduleassistant.app.data.model.OverrideCourse
 import com.scheduleassistant.app.data.model.Section
+import com.scheduleassistant.app.util.isValidDate
+import com.scheduleassistant.app.util.isValidTime
 
 /** 课程/提醒/倒计时可选颜色，与网页版一致 */
 val COURSE_COLORS = listOf(
@@ -46,7 +49,10 @@ fun defaultSettings(): AppSettings = AppSettings(
     bgImage = ""
 )
 
-class ScheduleRepository(val dao: ScheduleDao) {
+class ScheduleRepository(
+    val dao: ScheduleDao,
+    private val db: AppDatabase
+) {
 
     // ---------- 流（供 UI 观察）----------
     val metaFlow: Flow<Meta?> = dao.getMeta()
@@ -89,9 +95,12 @@ class ScheduleRepository(val dao: ScheduleDao) {
 
     // ---------- overrides ----------
     suspend fun upsertOverride(o: Override, courses: List<OverrideCourse> = emptyList()) {
-        dao.upsertOverride(o)
-        dao.deleteOverrideCourses(o.id)
-        courses.forEach { dao.upsertOverrideCourse(it) }
+        // 先删后插原子化，避免中途失败留下残缺数据
+        db.withTransaction {
+            dao.upsertOverride(o)
+            dao.deleteOverrideCourses(o.id)
+            courses.forEach { dao.upsertOverrideCourse(it) }
+        }
     }
 
     suspend fun deleteOverride(o: Override) {
@@ -208,6 +217,7 @@ class ScheduleRepository(val dao: ScheduleDao) {
                     put("allDay", e.allDay)
                     put("start", e.start)
                     put("end", e.end)
+                    put("location", e.location)
                     put("color", e.color)
                     put("note", e.note)
                     if (e.reminder == null) put("reminder", JSONObject.NULL) else put("reminder", e.reminder)
@@ -231,7 +241,11 @@ class ScheduleRepository(val dao: ScheduleDao) {
         return root.toString(2)
     }
 
-    /** 导入 JSON（兼容网页版格式），覆盖全部数据 */
+    /**
+     * 导入 JSON（兼容网页版格式），覆盖全部数据。
+     * 修复：整库替换包在 Room 事务（dao.replaceAll）中，失败自动回滚，不再出现半清空；
+     * 导入时校验字段合法性（坏数据跳过不入库）；调课按日期去重（同日期保留后一条）。
+     */
     suspend fun importJson(json: String) {
         val root = JSONObject(json)
         val metaObj = root.optJSONObject("meta")
@@ -242,57 +256,55 @@ class ScheduleRepository(val dao: ScheduleDao) {
         val eventsArr = root.optJSONArray("events") ?: JSONArray()
         val countdownsArr = root.optJSONArray("countdowns") ?: JSONArray()
 
-        // 先清空（保留行再 REPLACE，简单起见整表替换）
-        dao.clearMeta(); dao.clearSettings(); dao.clearSections()
-        dao.clearCourses(); dao.clearOverrides(); dao.clearOverrideCourses()
-        dao.clearEvents(); dao.clearCountdowns()
-
-        // meta
+        // meta（无强校验）
         val meta = Meta(
             semesterName = metaObj?.optString("semesterName", "") ?: "",
             semesterStart = metaObj?.optString("semesterStart", "") ?: "",
             userName = metaObj?.optString("userName", "") ?: ""
         )
-        dao.upsertMeta(meta)
 
         // settings
         val settings = AppSettings(
-            defaultReminder = settingsObj?.optInt("defaultReminder", 10) ?: 10,
+            defaultReminder = (settingsObj?.optInt("defaultReminder", 10) ?: 10).coerceIn(0, 10080),
             enableSound = settingsObj?.optBoolean("enableSound", true) ?: true,
             theme = settingsObj?.optString("theme", "light")?.let { if (it in setOf("light", "dark")) it else "light" } ?: "light",
             background = settingsObj?.optString("background", "solid")?.let { if (it in setOf("solid", "image")) it else "solid" } ?: "solid",
             bgImage = settingsObj?.optString("bgImage", "") ?: ""
         )
-        dao.upsertSettings(settings)
 
-        // sections
+        // sections（时间非法则跳过；全空回退默认节次）
         val sections = mutableListOf<Section>()
         for (i in 0 until sectionsArr.length()) {
             val s = sectionsArr.optJSONObject(i) ?: continue
+            val start = s.optString("start", "")
+            val end = s.optString("end", "")
+            if (!isValidTime(start) || !isValidTime(end)) continue
             sections.add(
                 Section(
                     id = s.optString("id", "s${i + 1}"),
-                    name = s.optString("name", ""),
-                    start = s.optString("start", ""),
-                    end = s.optString("end", ""),
+                    name = s.optString("name", "").ifBlank { "第${i + 1}节" },
+                    start = start,
+                    end = end,
                     position = i
                 )
             )
         }
         if (sections.isEmpty()) sections.addAll(defaultSections())
-        sections.forEach { dao.upsertSection(it) }
 
-        // courses
+        // courses（weekday 越界 / weekType 非法则跳过）
+        val courses = mutableListOf<Course>()
         for (i in 0 until coursesArr.length()) {
             val c = coursesArr.optJSONObject(i) ?: continue
-            dao.upsertCourse(
+            val weekday = c.optInt("weekday", 0)
+            if (weekday !in 1..7) continue
+            courses.add(
                 Course(
                     id = c.optString("id", "c$i"),
                     name = c.optString("name", ""),
                     location = c.optString("location", ""),
                     teacher = c.optString("teacher", ""),
                     cls = c.optString("cls", ""),
-                    weekday = c.optInt("weekday", 1),
+                    weekday = weekday,
                     weekType = c.optString("weekType", "every").let { if (it in setOf("every", "odd", "even")) it else "every" },
                     sectionId = c.optString("sectionId", ""),
                     color = c.optString("color", COURSE_COLORS[0]),
@@ -301,23 +313,30 @@ class ScheduleRepository(val dao: ScheduleDao) {
             )
         }
 
-        // overrides + 自定义课程
+        // overrides + 自定义课程（按日期去重：同日期保留后一条；日期非法跳过）
+        val overridesByDate = LinkedHashMap<String, Override>()
+        val overrideCourses = mutableListOf<OverrideCourse>()
         for (i in 0 until overridesArr.length()) {
             val o = overridesArr.optJSONObject(i) ?: continue
+            val date = o.optString("date", "")
+            if (!isValidDate(date)) continue
             val mode = o.optString("mode", "cancel").let { if (it in setOf("cancel", "copyWeekday", "custom")) it else "cancel" }
             val id = o.optString("id", "o$i")
             val override = Override(
                 id = id,
-                date = o.optString("date", ""),
+                date = date,
                 mode = mode,
-                copyWeekday = if (mode == "copyWeekday") o.optInt("copyWeekday", 1) else null
+                copyWeekday = if (mode == "copyWeekday") (o.optInt("copyWeekday", 1).coerceIn(1, 7)) else null
             )
-            val courses = mutableListOf<OverrideCourse>()
+            // 同日期已有旧记录时，先清理其自定义课程再覆盖
+            overridesByDate[date]?.let { prev -> overrideCourses.removeAll { it.overrideId == prev.id } }
+            overridesByDate[date] = override
+
             if (mode == "custom") {
                 val arr = o.optJSONArray("courses") ?: JSONArray()
                 for (j in 0 until arr.length()) {
                     val c = arr.optJSONObject(j) ?: continue
-                    courses.add(
+                    overrideCourses.add(
                         OverrideCourse(
                             id = "oc_${id}_$j",
                             overrideId = id,
@@ -331,21 +350,28 @@ class ScheduleRepository(val dao: ScheduleDao) {
                     )
                 }
             }
-            upsertOverride(override, courses)
         }
 
-        // events
+        // events（日期非法 / 时间格式非法则跳过）
+        val events = mutableListOf<Event>()
         for (i in 0 until eventsArr.length()) {
             val e = eventsArr.optJSONObject(i) ?: continue
-            val rem = if (e.isNull("reminder")) null else e.optInt("reminder", 0)
-            dao.upsertEvent(
+            val date = e.optString("date", "")
+            if (!isValidDate(date)) continue
+            val allDay = e.optBoolean("allDay", false)
+            val start = e.optString("start", "")
+            val end = e.optString("end", "")
+            if (!allDay && !isValidTime(start)) continue
+            if (!allDay && end.isNotBlank() && !isValidTime(end)) continue
+            val rem = if (e.isNull("reminder")) null else e.optInt("reminder", 0).coerceIn(0, 10080)
+            events.add(
                 Event(
                     id = e.optString("id", "e$i"),
                     title = e.optString("title", ""),
-                    date = e.optString("date", ""),
-                    allDay = e.optBoolean("allDay", false),
-                    start = e.optString("start", ""),
-                    end = e.optString("end", ""),
+                    date = date,
+                    allDay = allDay,
+                    start = if (allDay) "" else start,
+                    end = if (allDay) "" else end,
                     location = e.optString("location", ""),
                     color = e.optString("color", COURSE_COLORS[4]),
                     note = e.optString("note", ""),
@@ -355,17 +381,34 @@ class ScheduleRepository(val dao: ScheduleDao) {
             )
         }
 
-        // countdowns
+        // countdowns（target 非法则跳过；空格分隔归一化为 T）
+        val countdowns = mutableListOf<Countdown>()
         for (i in 0 until countdownsArr.length()) {
             val c = countdownsArr.optJSONObject(i) ?: continue
-            dao.upsertCountdown(
+            val target = c.optString("target", "").trim().replace(' ', 'T')
+            if (target.length != 16 || target[10] != 'T') continue
+            countdowns.add(
                 Countdown(
                     id = c.optString("id", "cd$i"),
                     title = c.optString("title", ""),
-                    target = c.optString("target", ""),
+                    target = target,
                     color = c.optString("color", COURSE_COLORS[4])
                 )
             )
+        }
+
+        // 整库替换（单事务，失败自动回滚，避免半清空状态）
+        db.withTransaction {
+            dao.clearMeta(); dao.clearSettings(); dao.clearSections(); dao.clearCourses()
+            dao.clearOverrides(); dao.clearOverrideCourses(); dao.clearEvents(); dao.clearCountdowns()
+            dao.upsertMeta(meta)
+            dao.upsertSettings(settings)
+            sections.forEach { dao.upsertSection(it) }
+            courses.forEach { dao.upsertCourse(it) }
+            overridesByDate.values.forEach { dao.upsertOverride(it) }
+            overrideCourses.forEach { dao.upsertOverrideCourse(it) }
+            events.forEach { dao.upsertEvent(it) }
+            countdowns.forEach { dao.upsertCountdown(it) }
         }
     }
 }

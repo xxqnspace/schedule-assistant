@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,9 +56,9 @@ fun OverrideFormSheet(
     val context = LocalContext.current
     val overrideId = initial?.id ?: uid("o")
 
-    var dateState by remember { mutableStateOf(date.ifBlank { nowDateStr() }) }
-    var mode by remember { mutableStateOf(initial?.mode ?: "cancel") }
-    var copyWeekday by remember { mutableStateOf((initial?.copyWeekday ?: 1).toString()) }
+    var dateState by rememberSaveable { mutableStateOf(date.ifBlank { nowDateStr() }) }
+    var mode by rememberSaveable { mutableStateOf(initial?.mode ?: "cancel") }
+    var copyWeekday by rememberSaveable { mutableStateOf((initial?.copyWeekday ?: 1).toString()) }
     val customCourses = remember {
         mutableStateListOf<OverrideCourse>().apply { addAll(initialCourses) }
     }
@@ -166,7 +167,7 @@ fun OverrideFormSheet(
                                 id = overrideId,
                                 date = dateState,
                                 mode = mode,
-                                copyWeekday = if (mode == "copyWeekday") copyWeekday.toIntOrNull() ?: 1 else null
+                                copyWeekday = if (mode == "copyWeekday") copyWeekday.toIntOrNull()?.coerceIn(1, 7) ?: 1 else null
                             ),
                             if (mode == "custom") customCourses.toList() else emptyList()
                         )
@@ -177,4 +178,3 @@ fun OverrideFormSheet(
         }
     }
 }
-

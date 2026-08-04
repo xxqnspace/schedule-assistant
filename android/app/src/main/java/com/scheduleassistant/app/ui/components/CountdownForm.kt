@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,10 +51,10 @@ fun CountdownFormSheet(
         initial.target.slice(0..9) to initial.target.slice(11..15)
     } else defaultTarget.slice(0..9) to defaultTarget.slice(11..15)
 
-    var title by remember { mutableStateOf(initial?.title ?: "") }
-    var date by remember { mutableStateOf(initDate) }
-    var time by remember { mutableStateOf(initTime) }
-    var color by remember {
+    var title by rememberSaveable { mutableStateOf(initial?.title ?: "") }
+    var date by rememberSaveable { mutableStateOf(initDate) }
+    var time by rememberSaveable { mutableStateOf(initTime) }
+    var color by rememberSaveable {
         mutableStateOf(initial?.color?.ifBlank { COURSE_COLORS[4] } ?: COURSE_COLORS[4])
     }
 
@@ -112,4 +113,3 @@ fun CountdownFormSheet(
         }
     }
 }
-

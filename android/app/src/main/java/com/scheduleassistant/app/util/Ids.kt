@@ -1,7 +1,10 @@
 package com.scheduleassistant.app.util
 
-/** 简单唯一 ID 生成（与网页版策略类似） */
-fun uid(prefix: String): String {
-    val r = (Math.random() * 1296).toInt().toString(36).padStart(2, '0')
-    return "${prefix}_${System.currentTimeMillis().toString(36)}$r"
-}
+import java.util.UUID
+
+/**
+ * 生成唯一 ID（UUID 前缀，避免同毫秒内生成碰撞导致 REPLACE 覆盖）。
+ * 修复：原实现 Math.random()*1296 仅 2 位 base36，同毫秒碰撞概率约 1/1296。
+ */
+fun uid(prefix: String): String =
+    "${prefix}_${UUID.randomUUID().toString().replace("-", "").take(10)}"

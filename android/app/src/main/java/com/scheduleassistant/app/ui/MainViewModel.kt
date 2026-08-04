@@ -3,6 +3,8 @@ package com.scheduleassistant.app.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -37,7 +39,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val countdowns: StateFlow<List<Countdown>>
 
     init {
-        viewModelScope.launch { repo.seedIfEmpty() }
+        // 修复（H4）：播种完成后才注册提醒，串行执行，消除 600ms 硬编码竞态
+        viewModelScope.launch {
+            repo.seedIfEmpty()
+            ReminderScheduler.scheduleAll(getApplication())
+        }
         val eager = SharingStarted.Eagerly
         meta = repo.metaFlow.map { it ?: Meta() }.stateIn(viewModelScope, eager, Meta())
         settings = repo.settingsFlow.map { it ?: defaultSettings() }
@@ -50,9 +56,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         countdowns = repo.countdownsFlow.stateIn(viewModelScope, eager, emptyList())
     }
 
-    /** 数据变化后重新注册系统本地通知 */
+    /** 立即重注册（用于初始化 / 导入 / 重置等大变更） */
     private suspend fun reschedule() {
         ReminderScheduler.scheduleAll(getApplication())
+    }
+
+    /** 防抖重注册（M16）：连续小变更 400ms 内合并为一次全量重注册 */
+    private var rescheduleJob: Job? = null
+    private fun scheduleReschedule() {
+        rescheduleJob?.cancel()
+        rescheduleJob = viewModelScope.launch {
+            delay(400)
+            ReminderScheduler.scheduleAll(getApplication())
+        }
     }
 
     val currentWeekIndex: Int?
@@ -68,7 +84,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ---------- settings ----------
     fun updateSettings(patch: AppSettings.() -> AppSettings) {
-        viewModelScope.launch { repo.updateSettings(patch); reschedule() }
+        viewModelScope.launch { repo.updateSettings(patch); scheduleReschedule() }
     }
 
     // ---------- sections ----------
@@ -82,29 +98,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ---------- courses ----------
     fun saveCourse(c: Course) {
-        viewModelScope.launch { repo.upsertCourse(c); reschedule() }
+        viewModelScope.launch { repo.upsertCourse(c); scheduleReschedule() }
     }
 
     fun removeCourse(c: Course) {
-        viewModelScope.launch { repo.deleteCourse(c); reschedule() }
+        viewModelScope.launch { repo.deleteCourse(c); scheduleReschedule() }
     }
 
     // ---------- overrides ----------
     fun saveOverride(o: Override, courses: List<OverrideCourse>) {
-        viewModelScope.launch { repo.upsertOverride(o, courses); reschedule() }
+        viewModelScope.launch { repo.upsertOverride(o, courses); scheduleReschedule() }
     }
 
     fun removeOverride(o: Override) {
-        viewModelScope.launch { repo.deleteOverride(o); reschedule() }
+        viewModelScope.launch { repo.deleteOverride(o); scheduleReschedule() }
     }
 
     // ---------- events ----------
     fun saveEvent(e: Event) {
-        viewModelScope.launch { repo.upsertEvent(e); reschedule() }
+        viewModelScope.launch { repo.upsertEvent(e); scheduleReschedule() }
     }
 
     fun removeEvent(e: Event) {
-        viewModelScope.launch { repo.deleteEvent(e); reschedule() }
+        viewModelScope.launch { repo.deleteEvent(e); scheduleReschedule() }
     }
 
     // ---------- countdowns ----------

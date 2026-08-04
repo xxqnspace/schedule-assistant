@@ -6,5 +6,5 @@ import com.scheduleassistant.app.data.ScheduleRepository
 
 class ScheduleApplication : Application() {
     val database by lazy { AppDatabase.getDatabase(this) }
-    val repository by lazy { ScheduleRepository(database.scheduleDao()) }
+    val repository by lazy { ScheduleRepository(database.scheduleDao(), database) }
 }

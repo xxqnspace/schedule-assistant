@@ -25,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,10 +59,11 @@ fun TodayScreen(
     val meta by vm.meta.collectAsState()
     val settings by vm.settings.collectAsState()
 
-    val dateStr = remember { nowDateStr() }
+    // 修复（M11）：跨午夜自动刷新日期与今日安排
+    var dateStr by remember { mutableStateOf(nowDateStr()) }
     val wd = getDayOfWeek(dateStr)
     val timeline = remember(
-        courses, overrides, overrideCourses, events, sections, meta, settings
+        dateStr, courses, overrides, overrideCourses, events, sections, meta, settings
     ) {
         getDayTimeline(
             dateStr, courses, overrides, overrideCourses, events, sections,
@@ -69,11 +71,13 @@ fun TodayScreen(
         )
     }
 
-    // 倒计时每秒刷新
+    // 倒计时每秒刷新 + 日期跨天检测
     var now by remember { mutableLongStateOf(nowMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
             now = nowMillis()
+            val today = nowDateStr()
+            if (today != dateStr) dateStr = today
             delay(1000)
         }
     }
@@ -118,7 +122,14 @@ fun TodayScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(if (isEvent) Modifier.clickable { onEditEvent(events.first { it.id == item.refId }) } else Modifier),
+                        .then(
+                            // 修复（M12）：firstOrNull 避免极端竞态下崩溃
+                            if (isEvent) {
+                                Modifier.clickable {
+                                    events.firstOrNull { it.id == item.refId }?.let(onEditEvent)
+                                }
+                            } else Modifier
+                        ),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Row(Modifier.fillMaxWidth()) {
@@ -167,18 +178,6 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
     val accent = runCatching { Color(android.graphics.Color.parseColor(color)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
     val targetDate = parseDateTimeTarget(target)
-    val diff = (targetDate?.time ?: 0) - now
-
-    val (d, h, m, s, finished) = if (diff <= 0) {
-        Quartet(0, 0, 0, 0, true)
-    } else {
-        val totalSec = diff / 1000
-        val days = totalSec / 86400
-        val hours = (totalSec % 86400) / 3600
-        val mins = (totalSec % 3600) / 60
-        val secs = totalSec % 60
-        Quartet(days, hours, mins, secs, false)
-    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -189,14 +188,25 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
             Column(Modifier.padding(14.dp).fillMaxWidth()) {
                 Text(title.ifBlank { "(无标题)" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                if (finished) {
-                    Text("已结束", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // 修复（L5）：目标时间格式非法时明确提示，而非误显示"已结束"
+                if (targetDate == null) {
+                    Text("时间格式错误", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        TimeUnit(d, "天", accent)
-                        TimeUnit(h, "时", accent)
-                        TimeUnit(m, "分", accent)
-                        TimeUnit(s, "秒", accent)
+                    val diff = targetDate.time - now
+                    if (diff <= 0) {
+                        Text("已结束", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        val totalSec = diff / 1000
+                        val days = totalSec / 86400
+                        val hours = (totalSec % 86400) / 3600
+                        val mins = (totalSec % 3600) / 60
+                        val secs = totalSec % 60
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            TimeUnit(days, "天", accent)
+                            TimeUnit(hours, "时", accent)
+                            TimeUnit(mins, "分", accent)
+                            TimeUnit(secs, "秒", accent)
+                        }
                     }
                 }
             }
@@ -216,5 +226,3 @@ private fun TimeUnit(value: Long, unit: String, accent: Color) {
         Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-private data class Quartet(val d: Long, val h: Long, val m: Long, val s: Long, val finished: Boolean)

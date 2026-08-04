@@ -1,5 +1,11 @@
 package com.scheduleassistant.app.ui.screens
 
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +40,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +53,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Override
 import com.scheduleassistant.app.data.model.Section
@@ -56,6 +65,7 @@ import com.scheduleassistant.app.ui.components.ChipGroup
 import com.scheduleassistant.app.ui.components.FormSectionTitle
 import com.scheduleassistant.app.ui.components.LabeledTextField
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
+import com.scheduleassistant.app.util.isValidDate
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.ui.components.showDatePicker
 import kotlinx.coroutines.Dispatchers
@@ -81,11 +91,27 @@ fun SettingsScreen(
     val overrideCourses by vm.overrideCourses.collectAsState()
     val countdowns by vm.countdowns.collectAsState()
 
+    // 修复（M10）：meta 变化（如导入）后同步本地表单状态
     var semesterName by remember { mutableStateOf(meta.semesterName) }
     var semesterStart by remember { mutableStateOf(meta.semesterStart) }
     var userName by remember { mutableStateOf(meta.userName) }
+    LaunchedEffect(meta) {
+        semesterName = meta.semesterName
+        semesterStart = meta.semesterStart
+        userName = meta.userName
+    }
 
     var showReset by remember { mutableStateOf(false) }
+
+    // 修复（H1/H2）：通知权限与精确闹钟权限状态展示（从设置页返回时自动刷新）
+    var notifEnabled by remember { mutableStateOf(false) }
+    var exactAlarmOk by remember { mutableStateOf(true) }
+    LifecycleResumeEffect(Unit) {
+        notifEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        exactAlarmOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        onPauseOrDispose { }
+    }
 
     // 导出：让用户选择保存位置
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -110,7 +136,8 @@ fun SettingsScreen(
                 vm.importJson(text)
                 ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "已导入数据", Toast.LENGTH_SHORT).show() }
             }.onFailure {
-                ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "导入失败：文件格式不正确", Toast.LENGTH_SHORT).show() }
+                // 修复（L6）：展示真实失败原因
+                ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "导入失败：${it.message}", Toast.LENGTH_LONG).show() }
             }
         }
     }
@@ -135,7 +162,15 @@ fun SettingsScreen(
                 }
                 LabeledTextField("姓名 / 称呼", userName, { userName = it }, placeholder = "可选")
                 Button(
-                    onClick = { vm.saveMeta(semesterName.trim(), semesterStart.trim(), userName.trim()) },
+                    onClick = {
+                        // 修复（M9）：学期起始日格式校验，非法提示且不保存
+                        val start = semesterStart.trim()
+                        if (start.isNotBlank() && !isValidDate(start)) {
+                            Toast.makeText(context, "学期起始日格式应为 yyyy-MM-dd", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        vm.saveMeta(semesterName.trim(), start, userName.trim())
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("保存学期信息") }
             }
@@ -153,6 +188,49 @@ fun SettingsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("提醒声音", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Switch(checked = settings.enableSound, onCheckedChange = { vm.updateSettings { copy(enableSound = it) } })
+                }
+
+                // 修复（H2）：通知权限状态 + 跳转引导
+                FormSectionTitle("通知权限")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (notifEnabled) "通知：已开启" else "通知：未开启（收不到提醒）",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (notifEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (!notifEnabled) {
+                        OutlinedButton(onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                )
+                            }
+                        }) { Text("去开启") }
+                    }
+                }
+
+                // 修复（H1）：精确闹钟权限状态 + 跳转引导（Android 12+）
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (exactAlarmOk) "精确闹钟：已开启" else "精确闹钟：未开启（提醒可能延迟）",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (exactAlarmOk) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (!exactAlarmOk) {
+                            OutlinedButton(onClick = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                            .setData(Uri.parse("package:${context.packageName}"))
+                                    )
+                                }
+                            }) { Text("去开启") }
+                        }
+                    }
                 }
 
                 FormSectionTitle("外观")

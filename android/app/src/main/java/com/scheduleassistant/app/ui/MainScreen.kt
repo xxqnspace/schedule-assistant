@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +49,9 @@ import com.scheduleassistant.app.ui.screens.TimetableScreen
 import com.scheduleassistant.app.ui.screens.TodayScreen
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.getDayOfWeek
+import com.scheduleassistant.app.util.millisUntilNext
 import com.scheduleassistant.app.util.nowDateStr
+import kotlinx.coroutines.delay
 
 /** 当前打开的表单（底部弹窗） */
 sealed interface OpenForm {
@@ -67,7 +70,14 @@ fun MainScreen(vm: MainViewModel) {
     var form by remember { mutableStateOf<OpenForm>(OpenForm.None) }
     val meta by vm.meta.collectAsState()
 
-    val dateStr = remember { nowDateStr() }
+    // 修复（M11）：跨午夜自动刷新顶栏日期与周次
+    var dateStr by remember { mutableStateOf(nowDateStr()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(millisUntilNext(0, 1))
+            dateStr = nowDateStr()
+        }
+    }
     val wd = getDayOfWeek(dateStr)
     val idx = vm.currentWeekIndex
     val weekText = when {

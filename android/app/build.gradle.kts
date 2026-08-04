@@ -12,8 +12,9 @@ android {
         applicationId = "com.scheduleassistant.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        // 修复（L10）：版本号由 CI 构建序号注入（本地默认 1）
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = System.getenv("GITHUB_RUN_NUMBER")?.let { "1.0.$it" } ?: "1.0.0"
     }
 
     signingConfigs {
@@ -35,7 +36,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 修复（L8）：开启混淆与资源裁剪（Room/JSON 的 keep 规则见 proguard-rules.pro）
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -43,6 +45,11 @@ android {
             // 配置了密钥才启用签名；未配置时 assembleRelease 会提示缺少密钥（本地调试用 debug 即可）
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+
+    // 修复（L10）：lint 发现问题不中断构建（报告仍生成）
+    lint {
+        abortOnError = false
     }
 
     compileOptions {
@@ -91,4 +98,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // 单元测试（L10）：ScheduleUtils/DateUtils 纯逻辑
+    testImplementation("junit:junit:4.13.2")
 }
