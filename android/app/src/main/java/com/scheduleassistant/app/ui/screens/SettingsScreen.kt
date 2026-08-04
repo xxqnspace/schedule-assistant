@@ -33,6 +33,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +56,7 @@ import com.scheduleassistant.app.ui.components.FormSectionTitle
 import com.scheduleassistant.app.ui.components.LabeledTextField
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.nowDateStr
-import com.scheduleassistant.app.util.showDatePicker
+import com.scheduleassistant.app.ui.components.showDatePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -173,13 +174,13 @@ fun SettingsScreen(
                 if (sections.isEmpty()) {
                     Text("尚未设置节次", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                sections.forEach { s ->
+                for (s in sections) {
                     Row(Modifier.fillMaxWidth().clickable { onEditSection(s) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(s.name, style = MaterialTheme.typography.bodyLarge)
                             Text("${s.start} - ${s.end}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = onEditSection(s)) { Icon(Icons.Filled.Edit, "编辑") }
+                        IconButton(onClick = { onEditSection(s) }) { Icon(Icons.Filled.Edit, "编辑") }
                     }
                 }
             }
@@ -196,7 +197,7 @@ fun SettingsScreen(
                 if (overrides.isEmpty()) {
                     Text("暂无调课/调休安排", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                overrides.sortedBy { it.date }.forEach { o ->
+                for (o in overrides.sortedBy { it.date }) {
                     val label = when (o.mode) {
                         "cancel" -> "停课"
                         "copyWeekday" -> "按${WEEKDAY_NAMES[(o.copyWeekday ?: 1) - 1]}课表"
@@ -208,7 +209,7 @@ fun SettingsScreen(
                             Text(o.date, style = MaterialTheme.typography.bodyLarge)
                             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = onEditOverride(o)) { Icon(Icons.Filled.Edit, "编辑") }
+                        IconButton(onClick = { onEditOverride(o) }) { Icon(Icons.Filled.Edit, "编辑") }
                     }
                 }
             }
@@ -225,7 +226,7 @@ fun SettingsScreen(
                 if (countdowns.isEmpty()) {
                     Text("尚未添加倒计时", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                countdowns.forEach { cd ->
+                for (cd in countdowns) {
                     val accent = runCatching { Color(android.graphics.Color.parseColor(cd.color)) }.getOrDefault(MaterialTheme.colorScheme.primary)
                     Row(Modifier.fillMaxWidth().clickable { onEditCountdown(cd) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).clip(CircleShape).background(accent).padding(end = 8.dp))
@@ -233,7 +234,7 @@ fun SettingsScreen(
                             Text(cd.title.ifBlank { "(无标题)" }, style = MaterialTheme.typography.bodyLarge)
                             Text(cd.target.replace("T", " "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = onEditCountdown(cd)) { Icon(Icons.Filled.Edit, "编辑") }
+                        IconButton(onClick = { onEditCountdown(cd) }) { Icon(Icons.Filled.Edit, "编辑") }
                     }
                 }
             }

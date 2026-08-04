@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -52,13 +53,14 @@ import com.scheduleassistant.app.util.nowDateStr
 /** 当前打开的表单（底部弹窗） */
 sealed interface OpenForm {
     data object None : OpenForm
-    data class Course(val initial: Course?) : OpenForm
-    data class Event(val initial: Event?) : OpenForm
-    data class Override(val date: String, val initial: Override?) : OpenForm
-    data class Section(val initial: Section?) : OpenForm
-    data class Countdown(val initial: Countdown?) : OpenForm
+    data class Course(val initial: com.scheduleassistant.app.data.model.Course?) : OpenForm
+    data class Event(val initial: com.scheduleassistant.app.data.model.Event?) : OpenForm
+    data class Override(val date: String, val initial: com.scheduleassistant.app.data.model.Override?) : OpenForm
+    data class Section(val initial: com.scheduleassistant.app.data.model.Section?) : OpenForm
+    data class Countdown(val initial: com.scheduleassistant.app.data.model.Countdown?) : OpenForm
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(vm: MainViewModel) {
     var route by rememberSaveable { mutableStateOf("today") }

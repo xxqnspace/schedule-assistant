@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Course
+import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Section
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.uid

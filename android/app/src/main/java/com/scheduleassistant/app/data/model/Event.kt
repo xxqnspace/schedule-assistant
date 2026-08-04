@@ -17,6 +17,7 @@ data class Event(
     val allDay: Boolean,
     val start: String,
     val end: String,
+    val location: String = "",
     val color: String,
     val note: String,
     val reminder: Int?,

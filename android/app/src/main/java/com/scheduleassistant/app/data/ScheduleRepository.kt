@@ -346,6 +346,7 @@ class ScheduleRepository(val dao: ScheduleDao) {
                     allDay = e.optBoolean("allDay", false),
                     start = e.optString("start", ""),
                     end = e.optString("end", ""),
+                    location = e.optString("location", ""),
                     color = e.optString("color", COURSE_COLORS[4]),
                     note = e.optString("note", ""),
                     reminder = rem,

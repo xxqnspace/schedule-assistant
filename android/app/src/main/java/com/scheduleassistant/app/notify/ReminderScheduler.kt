@@ -38,7 +38,7 @@ object ReminderScheduler {
         val overrideCourses = dao.getAllOverrideCoursesNow()
         val events = dao.getEventsNow()
 
-        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return@withContext
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
         // 1) 取消上一批

@@ -178,16 +178,3 @@ fun OverrideFormSheet(
     }
 }
 
-/** 点击触发的只读输入框（用于弹出系统日期选择器） */
-@Composable
-private fun OutlinedClickField(value: String, onClick: () -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        readOnly = true,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        trailingIcon = { Icon(Icons.Filled.EditCalendar, null) }
-    )
-}

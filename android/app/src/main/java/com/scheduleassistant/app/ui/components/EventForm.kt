@@ -89,7 +89,7 @@ fun EventFormSheet(
                     }
                 }
 
-                androidx.compose.material3.Row(
+                Row(
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                 ) {
                     androidx.compose.material3.Checkbox(
@@ -155,20 +155,3 @@ fun EventFormSheet(
     }
 }
 
-/** 点击触发的只读输入框（用于弹出系统日期/时间选择器） */
-@Composable
-private fun OutlinedClickField(value: String, onClick: () -> Unit) {
-    androidx.compose.material3.OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        readOnly = true,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        trailingIcon = {
-            androidx.compose.material.icons.Icons.Filled.let { ic ->
-                androidx.compose.material3.Icon(ic.EditCalendar, null)
-            }
-        }
-    )
-}

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -119,9 +121,9 @@ fun TodayScreen(
                         .then(if (isEvent) Modifier.clickable { onEditEvent(events.first { it.id == item.refId }) } else Modifier),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Stretch) {
+                    Row(Modifier.fillMaxWidth()) {
                         Box(
-                            Modifier.width(6.dp).background(accent)
+                            Modifier.width(6.dp).fillMaxHeight().background(accent)
                         )
                         Column(Modifier.padding(14.dp).fillMaxWidth()) {
                             Row(
@@ -182,8 +184,8 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Stretch) {
-            Box(Modifier.width(6.dp).background(accent))
+        Row(Modifier.fillMaxWidth()) {
+            Box(Modifier.width(6.dp).fillMaxHeight().background(accent))
             Column(Modifier.padding(14.dp).fillMaxWidth()) {
                 Text(title.ifBlank { "(无标题)" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))

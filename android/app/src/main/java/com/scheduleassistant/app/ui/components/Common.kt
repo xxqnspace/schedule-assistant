@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -31,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.COURSE_COLORS
 
 /** 颜色选择行（与网页版一致的可选色板） */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColorSwatchRow(selected: String, onSelect: (String) -> Unit) {
     FlowRow(
@@ -65,9 +70,9 @@ fun ChipGroup(
 ) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { (value, label) ->
-            AssistChip(
+            FilterChip(
                 selected = selected == value,
-                onClick = { onSelect(value) },
+                onSelectedChange = { onSelect(value) },
                 label = { Text(label) }
             )
         }
@@ -75,6 +80,7 @@ fun ChipGroup(
 }
 
 /** 下拉选择（节次等列表） */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DropdownField(
     label: String,
@@ -167,4 +173,18 @@ fun CardSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) 
     ) {
         Column(modifier = Modifier.padding(16.dp)) { content() }
     }
+}
+
+/** 点击触发的只读输入框（用于弹出系统日期/时间选择器） */
+@Composable
+fun OutlinedClickField(value: String, onClick: () -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        trailingIcon = { Icon(Icons.Filled.EditCalendar, contentDescription = null) }
+    )
 }
