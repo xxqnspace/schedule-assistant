@@ -63,10 +63,9 @@ fun weekIndex(dateStr: String, semesterStart: String): Int? {
     val cur = runCatching { LocalDate.parse(dateStr) }.getOrNull() ?: return null
     val diff = ChronoUnit.DAYS.between(start, cur)
     if (diff < 0) return null
-    val w0 = start.dayOfWeek.value // 1=周一..7=周日
-    val firstWeekDays = 7 - w0     // 开学日到本周日的天数差（0..6）
+    val firstWeekDays = (7 - start.dayOfWeek.value).toLong() // 开学日到本周日的天数差（0..6）
     if (diff <= firstWeekDays) return 1
-    return 2 + (diff - (firstWeekDays + 1)) / 7
+    return (2 + (diff - firstWeekDays - 1) / 7).toInt()
 }
 
 fun isOddWeek(idx: Int?): Boolean = idx != null && idx % 2 == 1
