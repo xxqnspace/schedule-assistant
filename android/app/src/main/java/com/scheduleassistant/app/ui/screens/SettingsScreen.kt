@@ -341,7 +341,7 @@ fun SettingsScreen(
                     val previewModel = backgroundImageModel(settings.bgImage)
                     if (previewModel != null) {
                         AsyncImage(
-                            model = ImageRequest.Builder(context).data(previewModel).size(1600).build(),
+                            model = ImageRequest.Builder(context).data(previewModel).size(800).build(),
                             contentDescription = "背景图预览",
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -1,6 +1,7 @@
 package com.scheduleassistant.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Event
@@ -61,6 +64,9 @@ private val EVENT_TYPE_COLORS = mapOf(
 
 /** 上课（课程）统一使用蓝色 */
 private val COURSE_COLOR = "#2563eb"
+
+/** ③ 数字等宽字体 */
+private val MonoFont = FontFamily.Monospace
 
 /** 事件类型中文名 */
 private val EVENT_TYPE_LABELS = mapOf(
@@ -105,6 +111,9 @@ fun TodayScreen(
         }
     }
 
+    // ① 是否图片背景（决定卡片毛玻璃/纯色区分）
+    val isImageBg = settings.background == "image"
+
     // ③ 已完成判断：非全天且结束时间已过
     fun itemDone(item: TimelineItem): Boolean {
         if (item.allDay) return false
@@ -125,7 +134,7 @@ fun TodayScreen(
     ) {
         // ② 倒计时板块：去掉"倒计时"标题，直接展示卡片
         items(countdowns) { cd ->
-            CountdownCard(title = cd.title, target = cd.target, color = cd.color, now = now)
+            CountdownCard(title = cd.title, target = cd.target, color = cd.color, now = now, isImageBg = isImageBg)
         }
 
         item {
@@ -160,7 +169,7 @@ fun TodayScreen(
                 val isEvent = item.kind == "event"
                 val done = itemDone(item)
                 val isUpcoming = item.id == firstUpcomingId
-                // ① 各项安排前不同颜色：上课蓝 / 工作青 / 会议红 / 备课绿 / 值班橙 / 其他灰
+                // ② 各项安排前不同颜色：上课蓝 / 工作青 / 会议红 / 备课绿 / 值班橙 / 其他灰
                 val accent = if (isEvent) {
                     runCatching { Color(android.graphics.Color.parseColor(EVENT_TYPE_COLORS[item.type] ?: item.color)) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
@@ -168,17 +177,25 @@ fun TodayScreen(
                     runCatching { Color(android.graphics.Color.parseColor(COURSE_COLOR)) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                 }
-                val typeLabel = if (isEvent) (EVENT_TYPE_LABELS[item.type] ?: item.type) else "上课"
+                // ① 卡片背景：纯色背景用纯色+阴影；图片背景半透明伪毛玻璃+细边框
+                val cardContainer = when {
+                    done -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    isImageBg -> MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                    else -> MaterialTheme.colorScheme.surface
+                }
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (done) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        }
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = cardContainer),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (isImageBg) {
+                                Modifier.border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                            } else Modifier
+                        )
                         .then(
                             // 修复（M12）：firstOrNull 避免极端竞态下崩溃
                             if (isEvent) {
@@ -187,49 +204,60 @@ fun TodayScreen(
                                 }
                             } else Modifier
                         ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isImageBg) 0.dp else 2.dp)
                 ) {
                     Row(Modifier.fillMaxWidth()) {
-                        // ① 最左侧：类型颜色标记
+                        // ② 最左：类型颜色标记
                         Box(
                             Modifier.width(8.dp).fillMaxHeight().background(if (done) accent.copy(alpha = 0.35f) else accent)
                         )
-                        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth()) {
-                            // 第一行：类型名 + 日程名 + 右侧（首个日程显示"距开始"）
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // ② 日程时间：独立居中区域（所有日程都显示开始/结束时间）
+                            Column(
+                                Modifier.width(58.dp).padding(end = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    typeLabel,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = accent
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    item.title.ifBlank { "(无标题)" },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                when {
-                                    // ① 仅第一个即将开始的日程显示"距开始"
-                                    isUpcoming -> {
-                                        val startDate = timeToDate(dateStr, item.start)
-                                        val remainMin = startDate?.let { (it.time - now) / 60_000L } ?: 0L
-                                        Text(
-                                            if (remainMin >= 120) "距开始 ${item.start}"
-                                            else "距开始 $remainMin 分钟",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = accent
-                                        )
-                                    }
-                                    done -> {
+                                if (item.allDay) {
+                                    Text(
+                                        "全天",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                } else {
+                                    Text(
+                                        item.start ?: "--",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = accent,
+                                        fontFamily = MonoFont,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        item.end ?: "",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontFamily = MonoFont,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            // 内容：名称行 + 其他信息行（与名称对齐）
+                            Column(Modifier.weight(1f)) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        item.title.ifBlank { "(无标题)" },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (done) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
@@ -241,59 +269,51 @@ fun TodayScreen(
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }
-                                    }
-                                    else -> {
+                                    } else if (isUpcoming) {
+                                        // ② 最近一个日程：卡片最右端"xx 分钟后"（右对齐固定）
+                                        val startDate = timeToDate(dateStr, item.start)
+                                        val remainMin = startDate?.let { ((it.time - now) / 60_000L).coerceAtLeast(1) } ?: 1L
                                         Text(
-                                            if (item.allDay) "全天"
-                                            else listOfNotNull(item.start, item.end).joinToString(" - "),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            "$remainMin 分钟后",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = accent,
+                                            fontFamily = MonoFont
                                         )
                                     }
                                 }
-                            }
-                            // 第二行：课程显示班级（几班），事件显示时间/地点等
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                if (!isEvent) {
-                                    // ① 上课：展示几班
-                                    if (item.cls.isNotBlank()) {
+                                // ② 其他信息行（与日程名称对齐，下一行）
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (!isEvent && item.cls.isNotBlank()) {
+                                        Text("${item.cls}班", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    if (item.sectionName.isNotBlank()) {
+                                        Text(item.sectionName, style = MaterialTheme.typography.bodyMedium, color = accent)
+                                    }
+                                    if (item.location.isNotBlank()) {
                                         Text(
-                                            "${item.cls} 班",
+                                            "📍 ${item.location}",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         )
                                     }
                                 }
-                                if (item.sectionName.isNotBlank()) {
+                                if (item.note.isNotBlank()) {
                                     Text(
-                                        item.sectionName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = accent
-                                    )
-                                }
-                                if (item.location.isNotBlank()) {
-                                    Text(
-                                        "📍 ${item.location}",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        item.note,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                            }
-                            if (item.note.isNotBlank()) {
-                                Text(
-                                    item.note,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
                     }
@@ -310,16 +330,24 @@ fun TodayScreen(
  * 不足 1 天显示小时；格式错误/已结束有明确提示。
  */
 @Composable
-private fun CountdownCard(title: String, target: String, color: String, now: Long) {
+private fun CountdownCard(title: String, target: String, color: String, now: Long, isImageBg: Boolean) {
     val accent = runCatching { Color(android.graphics.Color.parseColor(color)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
     val targetDate = parseDateTimeTarget(target)
     val name = title.ifBlank { "目标" }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().then(
+            if (isImageBg) {
+                Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+            } else Modifier
+        ),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isImageBg) MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+            else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isImageBg) 0.dp else 2.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -358,7 +386,8 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
                                 "$days",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = accent
+                                color = accent,
+                                fontFamily = MonoFont
                             )
                             Text(" 天", style = MaterialTheme.typography.bodyLarge)
                         } else {
@@ -367,7 +396,8 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
                                 "$hours",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = accent
+                                color = accent,
+                                fontFamily = MonoFont
                             )
                             Text(" 小时", style = MaterialTheme.typography.bodyLarge)
                         }

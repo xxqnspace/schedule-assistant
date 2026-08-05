@@ -1,6 +1,7 @@
 package com.scheduleassistant.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +52,9 @@ import com.scheduleassistant.app.util.effectiveParity
 import com.scheduleassistant.app.util.getDayOfWeek
 import com.scheduleassistant.app.util.nowDateStr
 
+/** ③ 数字等宽字体 */
+private val MonoFont = FontFamily.Monospace
+
 @Composable
 fun TimetableScreen(
     vm: MainViewModel,
@@ -58,6 +63,7 @@ fun TimetableScreen(
 ) {
     val courses by vm.courses.collectAsState()
     val sections by vm.sections.collectAsState()
+    val settings by vm.settings.collectAsState()
 
     var viewWeek by rememberSaveable { mutableStateOf(vm.currentWeekIndex ?: 1) }
     val currentIdx = vm.currentWeekIndex
@@ -68,6 +74,9 @@ fun TimetableScreen(
 
     // ⑩ 当前星期高亮（表头 + 列底色）
     val todayWday = getDayOfWeek(nowDateStr())
+
+    // ① 图片背景时课表格子半透明伪毛玻璃
+    val isImageBg = settings.background == "image"
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp)
@@ -91,7 +100,8 @@ fun TimetableScreen(
                     Text(
                         "第 $viewWeek 周",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = MonoFont
                     )
                     Text(
                         if (viewWeek % 2 == 1) "单周" else "双周",
@@ -163,7 +173,7 @@ fun TimetableScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(sec.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                        Text(sec.start, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(sec.start, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = MonoFont)
                     }
                 }
                 // 7 天
@@ -173,8 +183,9 @@ fun TimetableScreen(
                     val courseColor = runCatching { Color(android.graphics.Color.parseColor(list.firstOrNull()?.color ?: "")) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                     val cellBg = when {
-                        list.isNotEmpty() -> courseColor.copy(alpha = 0.16f)
-                        isTodayCol -> MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+                        list.isNotEmpty() -> courseColor.copy(alpha = if (isImageBg) 0.20f else 0.16f)
+                        isTodayCol -> MaterialTheme.colorScheme.primary.copy(alpha = if (isImageBg) 0.08f else 0.06f)
+                        isImageBg -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
                         else -> Color.Transparent
                     }
                     Box(
@@ -184,6 +195,11 @@ fun TimetableScreen(
                             .heightIn(min = 46.dp) // ③ 紧凑格子：两行 4 字即可，不拉长
                             .clip(RoundedCornerShape(6.dp))
                             .background(cellBg)
+                            .then(
+                                if (isImageBg) {
+                                    Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                } else Modifier
+                            )
                             .then(
                                 if (editMode) {
                                     Modifier.clickable {
@@ -196,7 +212,7 @@ fun TimetableScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (list.isNotEmpty()) {
-                            // ③ 每格只显示课程名（第 1 行）+ 班级（第 2 行）
+                            // ③ 每格只显示课程名（第 1 行）+ 班级（第 2 行，自动补"班"字）
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     list.first().name.ifBlank { "(课)" },
@@ -208,7 +224,7 @@ fun TimetableScreen(
                                     color = courseColor
                                 )
                                 Text(
-                                    list.first().cls.ifBlank { "·" },
+                                    if (list.first().cls.isNotBlank()) "${list.first().cls}班" else "·",
                                     style = MaterialTheme.typography.labelSmall,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,

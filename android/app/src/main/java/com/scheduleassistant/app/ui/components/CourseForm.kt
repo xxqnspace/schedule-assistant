@@ -40,17 +40,17 @@ fun CourseFormSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // ④ 星期/节次由点击的单元格决定，用户无需再选择（保留 initial 传入值）
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
-    var weekday by rememberSaveable { mutableStateOf((initial?.weekday ?: 1).toString()) }
     var weekType by rememberSaveable { mutableStateOf(initial?.weekType ?: "every") }
-    var sectionId by rememberSaveable {
-        mutableStateOf(
-            initial?.sectionId ?: sections.firstOrNull()?.id ?: ""
-        )
-    }
     var cls by rememberSaveable { mutableStateOf(initial?.cls ?: "") }
     var color by rememberSaveable { mutableStateOf(initial?.color?.ifBlank { COURSE_COLORS[0] } ?: COURSE_COLORS[0]) }
     var note by rememberSaveable { mutableStateOf(initial?.note ?: "") }
+
+    val weekday = initial?.weekday ?: 1
+    val sectionId = initial?.sectionId ?: sections.firstOrNull()?.id ?: ""
+    val weekdayName = WEEKDAY_NAMES.getOrNull(weekday - 1) ?: ""
+    val secInfo = sections.firstOrNull { it.id == sectionId }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -69,27 +69,29 @@ fun CourseFormSheet(
                 modifier = Modifier.padding(16.dp)
             )
 
+            // ④ 星期 · 节次固定信息（标题下方展示，无需选择）
+            Text(
+                "$weekdayName · ${secInfo?.name ?: ""}（${secInfo?.start ?: ""} - ${secInfo?.end ?: ""}）",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
             FormColumn(spacing = 8.dp) {
-                LabeledTextField("课程名称", name, { name = it }, placeholder = "如：高等数学")
-                // ⑥ 上课星期改为下拉选择
-                FormSectionTitle("上课星期")
-                DropdownField(
-                    "星期",
-                    WEEKDAY_NAMES.mapIndexed { i, n -> (i + 1).toString() to n },
-                    weekday
-                ) { weekday = it }
+                // ④ 去掉"如：高等数学"占位提示
+                LabeledTextField("课程名称", name, { name = it })
                 FormSectionTitle("周次")
                 ChipGroup(
                     listOf("every" to "每周", "odd" to "单周", "even" to "双周"),
                     weekType
                 ) { weekType = it }
-                FormSectionTitle("节次")
-                DropdownField(
-                    "节次",
-                    sections.map { it.id to "${it.name} (${it.start})" },
-                    sectionId
-                ) { sectionId = it }
-                LabeledTextField("班级", cls, { cls = it }, placeholder = "如：1-15（课表上显示）")
+                // ④ 班级仅允许数字，课表上自动补"班"字
+                LabeledTextField(
+                    "班级（仅数字）",
+                    cls,
+                    { cls = it.filter { ch -> ch.isDigit() }.take(6) },
+                    placeholder = "如：15"
+                )
                 FormSectionTitle("颜色")
                 ColorSwatchRow(color) { color = it }
                 LabeledTextField("备注", note, { note = it }, singleLine = false)
@@ -120,7 +122,7 @@ fun CourseFormSheet(
                                 location = initial?.location ?: "",
                                 teacher = initial?.teacher ?: "",
                                 cls = cls.trim(),
-                                weekday = weekday.toIntOrNull() ?: 1,
+                                weekday = weekday,
                                 weekType = weekType,
                                 sectionId = sectionId,
                                 color = color,

@@ -33,11 +33,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.scheduleassistant.app.util.backgroundImageModel
+
+/** ③ 数字等宽字体 */
+private val MonoFont = FontFamily.Monospace
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Course
@@ -99,7 +103,7 @@ fun MainScreen(vm: MainViewModel) {
         val bgModel = backgroundImageModel(settings.bgImage)
         if (settings.background == "image" && bgModel != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(bgModel).size(1920).build(),
+                model = ImageRequest.Builder(context).data(bgModel).size(1440).build(),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -121,7 +125,8 @@ fun MainScreen(vm: MainViewModel) {
                     Text(
                         "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = MonoFont
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
