@@ -115,20 +115,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
+          echo "## 日程助手 v${VER}" > /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "基于 CI 构建产物（debug 签名，可直接安装测试）。" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "### 功能" >> /tmp/release-notes.md
+          echo "- 周课表（单/双周循环）+ 调课/调休/单日自定义" >> /tmp/release-notes.md
+          echo "- 今日安排：倒计时、课程/日程时间线" >> /tmp/release-notes.md
+          echo "- 工作日程：系统通知 + 声音提醒（提前量可自定义）" >> /tmp/release-notes.md
+          echo "- 学期周次自动计算（开学日至周日为第 1 周）" >> /tmp/release-notes.md
+          echo "- 背景图（URL）、主题、JSON 导入导出备份" >> /tmp/release-notes.md
+          echo "- 完全离线、本地存储，无网络权限依赖" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "### 安装" >> /tmp/release-notes.md
+          echo "下载 APK 后直接安装；首次安装需允许“安装未知来源应用”。" >> /tmp/release-notes.md
           gh release create "${GITHUB_REF_NAME}" \
             "schedule-assistant-v${VER}.apk" \
             --title "日程助手 v${VER}" \
-            --notes "## 日程助手 v${VER}
-
-基于 CI 构建产物（debug 签名，可直接安装测试）。
-
-### 功能
-- 周课表（单/双周循环）+ 调课/调休/单日自定义
-- 今日安排：倒计时、课程/日程时间线
-- 工作日程：系统通知 + 声音提醒（提前量可自定义）
-- 学期周次自动计算（开学日至周日为第 1 周）
-- 背景图（URL）、主题、JSON 导入导出备份
-- 完全离线、本地存储，无网络权限依赖
-
-### 安装
-下载 APK 后直接安装；首次安装需允许“安装未知来源应用”。"
+            --notes-file /tmp/release-notes.md
