@@ -37,6 +37,7 @@ import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Override
 import com.scheduleassistant.app.data.model.OverrideCourse
 import com.scheduleassistant.app.data.model.Section
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.util.uid
@@ -78,7 +79,11 @@ fun OverrideFormSheet(
         )
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = LocalGlassTokens.current.meshBase
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()

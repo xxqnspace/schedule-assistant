@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Course
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Section
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.uid
 
@@ -54,7 +55,8 @@ fun CourseFormSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = LocalGlassTokens.current.meshBase
     ) {
         Column(
             Modifier

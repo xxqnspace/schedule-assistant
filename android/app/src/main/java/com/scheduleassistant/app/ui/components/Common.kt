@@ -21,7 +21,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.COURSE_COLORS
+import com.scheduleassistant.app.ui.designsystem.theme.glassConvex
 
 /** 颜色选择行（与网页版一致的可选色板） */
 @OptIn(ExperimentalLayoutApi::class)
@@ -164,13 +164,12 @@ fun FormColumn(spacing: Dp = 12.dp, content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** 统一的卡片容器 */
+/** 统一的卡片容器（玻璃凸面） */
 @Composable
 fun CardSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 1.dp
+    Box(
+        modifier = modifier.fillMaxWidth()
+            .glassConvex(cornerRadius = 14.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) { content() }
     }

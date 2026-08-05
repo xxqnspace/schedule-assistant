@@ -14,7 +14,7 @@ android {
         targetSdk = 34
         // 修复（L10）：版本号由 CI 构建序号注入（本地默认 1）
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = System.getenv("GITHUB_RUN_NUMBER")?.let { "1.0.$it" } ?: "1.0.0"
+        versionName = System.getenv("GITHUB_RUN_NUMBER")?.let { "1.1.$it" } ?: "1.1.0"
     }
 
     signingConfigs {

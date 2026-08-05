@@ -1,6 +1,7 @@
 package com.scheduleassistant.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.drawBehind
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +29,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,6 +51,8 @@ import com.scheduleassistant.app.ui.components.CourseFormSheet
 import com.scheduleassistant.app.ui.components.EventFormSheet
 import com.scheduleassistant.app.ui.components.OverrideFormSheet
 import com.scheduleassistant.app.ui.components.SectionFormSheet
+import com.scheduleassistant.app.ui.designsystem.theme.GlassMeshBackground
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.ui.screens.EventsScreen
 import com.scheduleassistant.app.ui.screens.SettingsScreen
 import com.scheduleassistant.app.ui.screens.TimetableScreen
@@ -98,7 +101,10 @@ fun MainScreen(vm: MainViewModel) {
     }
 
     // ⑧ 背景图 + 半透明遮罩，内容浮于其上（⑤ model 安全构造；限尺寸防大图 OOM 闪退）
+    // 玻璃态：始终绘制 mesh 背景（无图时全屏显示；有图时作为兜底底层）
+    val tokens = LocalGlassTokens.current
     Box(Modifier.fillMaxSize()) {
+        GlassMeshBackground(tokens)
         val bgModel = backgroundImageModel(settings.bgImage)
         if (settings.background == "image" && bgModel != null) {
             AsyncImage(
@@ -109,8 +115,8 @@ fun MainScreen(vm: MainViewModel) {
             )
             Box(
                 Modifier.fillMaxSize().background(
-                    if (settings.theme == "dark") Color.Black.copy(alpha = 0.55f)
-                    else Color.White.copy(alpha = 0.5f)
+                    if (settings.theme == "dark") Color.Black.copy(alpha = 0.35f)
+                    else Color.White.copy(alpha = 0.30f)
                 )
             )
         }
@@ -118,11 +124,16 @@ fun MainScreen(vm: MainViewModel) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            // ③ 窄顶栏：自定义 Row（约 40dp），只保留日期+周次
+            // ③ 窄顶栏：自定义 Row（约 40dp），只保留日期+周次；玻璃半透
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(tokens.tintConvex)
+                    .then(
+                        Modifier.drawBehind {
+                            drawRect(color = tokens.borderHi, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
+                        }
+                    )
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -130,34 +141,56 @@ fun MainScreen(vm: MainViewModel) {
                     "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = MonoFont
+                    fontFamily = MonoFont,
+                    color = tokens.textPrimary
                 )
             }
         },
         bottomBar = {
-            NavigationBar {
-                val items = listOf(
-                    "today" to Pair("今日", Icons.Filled.CalendarToday),
-                    "timetable" to Pair("课表", Icons.Filled.CalendarViewWeek),
-                    "events" to Pair("日程", Icons.Filled.ListAlt),
-                    "settings" to Pair("设置", Icons.Filled.Settings)
-                )
-                items.forEach { (r, pair) ->
-                    NavigationBarItem(
-                        selected = route == r,
-                        onClick = { route = r },
-                        icon = { Icon(pair.second, contentDescription = pair.first) },
-                        label = { Text(pair.first) }
+            // 玻璃底栏：凸起玻璃面板 + 高光
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .background(tokens.tintConvex)
+                    .drawBehind {
+                        drawRect(color = tokens.borderHi, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
+                    }
+            ) {
+                NavigationBar(containerColor = Color.Transparent) {
+                    val items = listOf(
+                        "today" to Pair("今日", Icons.Filled.CalendarToday),
+                        "timetable" to Pair("课表", Icons.Filled.CalendarViewWeek),
+                        "events" to Pair("日程", Icons.Filled.ListAlt),
+                        "settings" to Pair("设置", Icons.Filled.Settings)
                     )
+                    items.forEach { (r, pair) ->
+                        NavigationBarItem(
+                            selected = route == r,
+                            onClick = { route = r },
+                            icon = { Icon(pair.second, contentDescription = pair.first) },
+                            label = { Text(pair.first) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = tokens.textPrimary,
+                                selectedTextColor = tokens.textPrimary,
+                                indicatorColor = tokens.tintConcave,
+                                unselectedIconColor = tokens.textTertiary,
+                                unselectedTextColor = tokens.textTertiary
+                            )
+                        )
+                    }
                 }
             }
         },
         floatingActionButton = {
             // ⑨ 课表改用"编辑模式"添加课程，去掉课表页 FAB
             if (route == "today" || route == "events") {
-                FloatingActionButton(onClick = {
-                    form = OpenForm.Event(null)
-                }) { Icon(Icons.Filled.Add, "添加") }
+                FloatingActionButton(
+                    onClick = {
+                        form = OpenForm.Event(null)
+                    },
+                    containerColor = tokens.tintConvex,
+                    contentColor = tokens.textPrimary
+                ) { Icon(Icons.Filled.Add, "添加") }
             }
         }
     ) { padding ->

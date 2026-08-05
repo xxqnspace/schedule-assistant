@@ -1,7 +1,6 @@
 package com.scheduleassistant.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,10 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Event
 import com.scheduleassistant.app.ui.MainViewModel
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
+import com.scheduleassistant.app.ui.designsystem.theme.glassConvex
 import com.scheduleassistant.app.util.TimelineItem
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.getDayOfWeek
@@ -111,9 +109,6 @@ fun TodayScreen(
         }
     }
 
-    // ① 是否图片背景（决定卡片毛玻璃/纯色区分）
-    val isImageBg = settings.background == "image"
-
     // ③ 已完成判断：非全天且结束时间已过
     fun itemDone(item: TimelineItem): Boolean {
         if (item.allDay) return false
@@ -134,7 +129,7 @@ fun TodayScreen(
     ) {
         // ② 倒计时板块：去掉"倒计时"标题，直接展示卡片
         items(countdowns) { cd ->
-            CountdownCard(title = cd.title, target = cd.target, color = cd.color, now = now, isImageBg = isImageBg)
+            CountdownCard(title = cd.title, target = cd.target, color = cd.color, now = now)
         }
 
         item {
@@ -149,10 +144,9 @@ fun TodayScreen(
 
         if (ordered.isEmpty()) {
             item {
-                Surface(
-                    tonalElevation = 1.dp,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
+                val tokens = LocalGlassTokens.current
+                Box(
+                    Modifier.fillMaxWidth().glassConvex(cornerRadius = 14.dp, tokens = tokens)
                 ) {
                     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                         Text("今天没有安排，好好休息 🌿", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -179,25 +173,12 @@ fun TodayScreen(
                     runCatching { Color(android.graphics.Color.parseColor(COURSE_COLOR)) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                 }
-                // ① 卡片背景：纯色背景用纯色+阴影；图片背景半透明伪毛玻璃+细边框
-                val cardContainer = when {
-                    done -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    isImageBg -> MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
-                    else -> MaterialTheme.colorScheme.surface
-                }
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = cardContainer),
+                // ① 卡片背景：玻璃凸面（毛玻璃）
+                val tokens = LocalGlassTokens.current
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(
-                            if (isImageBg) {
-                                Modifier.border(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                                    RoundedCornerShape(12.dp)
-                                )
-                            } else Modifier
-                        )
+                        .glassConvex(cornerRadius = 12.dp, tokens = tokens)
                         .then(
                             // 修复（M12）：firstOrNull 避免极端竞态下崩溃
                             if (isEvent) {
@@ -205,9 +186,7 @@ fun TodayScreen(
                                     events.firstOrNull { it.id == item.refId }?.let(onEditEvent)
                                 }
                             } else Modifier
-                        ),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = if (isImageBg) 0.dp else 2.dp)
+                        )
                 ) {
                     Row(Modifier.fillMaxWidth()) {
                         // ② 最左：类型颜色标记
@@ -346,24 +325,15 @@ fun TodayScreen(
  * 不足 1 天显示小时；格式错误/已结束有明确提示。
  */
 @Composable
-private fun CountdownCard(title: String, target: String, color: String, now: Long, isImageBg: Boolean) {
+private fun CountdownCard(title: String, target: String, color: String, now: Long) {
     val accent = runCatching { Color(android.graphics.Color.parseColor(color)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
     val targetDate = parseDateTimeTarget(target)
     val name = title.ifBlank { "目标" }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().then(
-            if (isImageBg) {
-                Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
-            } else Modifier
-        ),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isImageBg) MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
-            else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isImageBg) 0.dp else 2.dp)
+    val tokens = LocalGlassTokens.current
+    Box(
+        modifier = Modifier.fillMaxWidth().glassConvex(cornerRadius = 14.dp, tokens = tokens)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),

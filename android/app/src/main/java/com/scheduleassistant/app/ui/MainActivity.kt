@@ -12,7 +12,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.scheduleassistant.app.ui.theme.ScheduleTheme
+import com.scheduleassistant.app.ui.designsystem.theme.GlassTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
             val vm: MainViewModel = viewModel()
             val settings by vm.settings.collectAsState()
             val dark = settings.theme == "dark"
-            ScheduleTheme(darkTheme = dark) {
+            GlassTheme(darkTheme = dark) {
                 MainScreen(vm)
             }
         }

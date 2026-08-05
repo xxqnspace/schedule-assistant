@@ -47,7 +47,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,6 +78,8 @@ import com.scheduleassistant.app.ui.MainViewModel
 import com.scheduleassistant.app.ui.components.ChipGroup
 import com.scheduleassistant.app.ui.components.FormSectionTitle
 import com.scheduleassistant.app.ui.components.LabeledTextField
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
+import com.scheduleassistant.app.ui.designsystem.theme.glassConvex
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.backgroundImageModel
 import com.scheduleassistant.app.util.backgroundImageSource
@@ -502,7 +503,7 @@ fun SettingsScreen(
     }
 }
 
-/** ⑦ 设置分组卡片：图标 + 加粗主色标题 + 描述，点击展开/收起二级内容 */
+/** ⑦ 设置分组卡片：图标 + 加粗主色标题 + 描述，点击展开/收起二级内容；玻璃凸面 */
 @Composable
 private fun SettingsMenuSection(
     title: String,
@@ -512,10 +513,9 @@ private fun SettingsMenuSection(
     onToggle: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 1.dp
+    val tokens = LocalGlassTokens.current
+    Box(
+        modifier = Modifier.fillMaxWidth().glassConvex(cornerRadius = 14.dp, tokens = tokens)
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(

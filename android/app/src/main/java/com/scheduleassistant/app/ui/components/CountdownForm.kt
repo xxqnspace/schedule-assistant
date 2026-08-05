@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Countdown
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.util.uid
 
@@ -58,7 +59,11 @@ fun CountdownFormSheet(
         mutableStateOf(initial?.color?.ifBlank { COURSE_COLORS[4] } ?: COURSE_COLORS[4])
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = LocalGlassTokens.current.meshBase
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()

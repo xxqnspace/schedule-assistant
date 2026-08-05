@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Section
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.util.uid
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,7 +44,11 @@ fun SectionFormSheet(
     var start by rememberSaveable { mutableStateOf(initial?.start ?: "08:00") }
     var end by rememberSaveable { mutableStateOf(initial?.end ?: "08:45") }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = LocalGlassTokens.current.meshBase
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()

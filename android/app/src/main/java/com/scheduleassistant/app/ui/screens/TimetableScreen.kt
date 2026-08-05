@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Course
 import com.scheduleassistant.app.ui.MainViewModel
+import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.coursesAt
 import com.scheduleassistant.app.util.effectiveParity
@@ -180,13 +181,14 @@ fun TimetableScreen(
                 (1..7).forEach { wd ->
                     val list = coursesAt(wd, eff, sec.id, courses)
                     val isTodayCol = wd == todayWday
+                    val tokens = LocalGlassTokens.current
                     val courseColor = runCatching { Color(android.graphics.Color.parseColor(list.firstOrNull()?.color ?: "")) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                     val cellBg = when {
                         list.isNotEmpty() -> courseColor.copy(alpha = if (isImageBg) 0.20f else 0.16f)
                         isTodayCol -> MaterialTheme.colorScheme.primary.copy(alpha = if (isImageBg) 0.08f else 0.06f)
-                        isImageBg -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
-                        else -> Color.Transparent
+                        isImageBg -> tokens.tintConvex
+                        else -> tokens.tintConcave
                     }
                     Box(
                         Modifier
