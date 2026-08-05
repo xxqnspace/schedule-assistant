@@ -184,10 +184,9 @@ fun TimetableScreen(
                     val tokens = LocalGlassTokens.current
                     val courseColor = runCatching { Color(android.graphics.Color.parseColor(list.firstOrNull()?.color ?: "")) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
+                    // ⑥ 有课格子：背景继续降低透明度（更实），保证内容清晰
                     val cellBg = when {
-                        // ② 有课格子：提高背景不透明度，保证课程名/班级清晰可读
-                        list.isNotEmpty() -> courseColor.copy(alpha = if (isImageBg) 0.35f else 0.32f)
-                        isTodayCol -> MaterialTheme.colorScheme.primary.copy(alpha = if (isImageBg) 0.15f else 0.12f)
+                        list.isNotEmpty() -> courseColor.copy(alpha = if (isImageBg) 0.50f else 0.45f)
                         isImageBg -> tokens.tintConvex
                         else -> tokens.tintConcave
                     }
@@ -199,7 +198,10 @@ fun TimetableScreen(
                             .clip(RoundedCornerShape(6.dp))
                             .background(cellBg)
                             .then(
-                                if (isImageBg) {
+                                // ⑥ 当天列：不填充颜色，改用 2dp 主色加粗描边突出（无论有无课程）
+                                if (isTodayCol) {
+                                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                } else if (isImageBg) {
                                     Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                                 } else Modifier
                             )

@@ -78,6 +78,7 @@ import com.scheduleassistant.app.ui.MainViewModel
 import com.scheduleassistant.app.ui.components.ChipGroup
 import com.scheduleassistant.app.ui.components.FormSectionTitle
 import com.scheduleassistant.app.ui.components.LabeledTextField
+import com.scheduleassistant.app.ui.designsystem.component.GlassImageLayer
 import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.ui.designsystem.theme.glassConvex
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
@@ -124,6 +125,10 @@ fun SettingsScreen(
     }
 
     var showReset by remember { mutableStateOf(false) }
+
+    // ⑤ 图片背景时，设置分组卡片叠加模糊背景图做毛玻璃
+    val isImageBg = settings.background == "image"
+    val bgModel = remember(settings.bgImage) { backgroundImageModel(settings.bgImage) }
 
     // ⑧ 背景 URL 输入（初始取当前 bgImage，若是 http 开头）
     var bgUrlText by remember { mutableStateOf(settings.bgImage.takeIf { it.startsWith("http") } ?: "") }
@@ -185,7 +190,8 @@ fun SettingsScreen(
                 desc = "学期名称 / 起始日 / 姓名",
                 icon = Icons.Filled.School,
                 expanded = "semester" in expandedSections,
-                onToggle = { toggleSection("semester") }
+                onToggle = { toggleSection("semester") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 LabeledTextField("学期名称", semesterName, { semesterName = it }, placeholder = "如：2025-2026 学年第二学期")
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -225,7 +231,8 @@ fun SettingsScreen(
                 desc = "提前提醒 / 声音 / 权限",
                 icon = Icons.Filled.Notifications,
                 expanded = "reminder" in expandedSections,
-                onToggle = { toggleSection("reminder") }
+                onToggle = { toggleSection("reminder") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 FormSectionTitle("默认提前提醒（分钟）")
                 ChipGroup(
@@ -290,7 +297,8 @@ fun SettingsScreen(
                 desc = "主题 / 背景图",
                 icon = Icons.Filled.Palette,
                 expanded = "appearance" in expandedSections,
-                onToggle = { toggleSection("appearance") }
+                onToggle = { toggleSection("appearance") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 FormSectionTitle("主题")
                 ChipGroup(
@@ -366,7 +374,8 @@ fun SettingsScreen(
                 desc = "上课节次与时间",
                 icon = Icons.Filled.Schedule,
                 expanded = "sections" in expandedSections,
-                onToggle = { toggleSection("sections") }
+                onToggle = { toggleSection("sections") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("共 ${sections.size} 个节次", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -394,7 +403,8 @@ fun SettingsScreen(
                 desc = "停课 / 按某天课表 / 单日自定义",
                 icon = Icons.Filled.SwapHoriz,
                 expanded = "overrides" in expandedSections,
-                onToggle = { toggleSection("overrides") }
+                onToggle = { toggleSection("overrides") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("共 ${overrides.size} 条", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -428,7 +438,8 @@ fun SettingsScreen(
                 desc = "最多 3 个",
                 icon = Icons.Filled.Timer,
                 expanded = "countdowns" in expandedSections,
-                onToggle = { toggleSection("countdowns") }
+                onToggle = { toggleSection("countdowns") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("共 ${countdowns.size}/3 个", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -458,7 +469,8 @@ fun SettingsScreen(
                 desc = "导入 / 导出 / 重置",
                 icon = Icons.Filled.Backup,
                 expanded = "data" in expandedSections,
-                onToggle = { toggleSection("data") }
+                onToggle = { toggleSection("data") },
+                isImageBg = isImageBg, bgModel = bgModel
             ) {
                 Text("导出 / 导入与网页版 schedule-data.json 完全兼容", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -511,12 +523,16 @@ private fun SettingsMenuSection(
     icon: ImageVector,
     expanded: Boolean,
     onToggle: () -> Unit,
+    isImageBg: Boolean = false,
+    bgModel: Any? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalGlassTokens.current
     Box(
         modifier = Modifier.fillMaxWidth().glassConvex(cornerRadius = 14.dp, tokens = tokens)
     ) {
+        // ⑤ 图片背景：毛玻璃底图
+        if (isImageBg) GlassImageLayer(bgModel, 14.dp)
         Column(Modifier.padding(16.dp)) {
             Row(
                 Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = 2.dp),

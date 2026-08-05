@@ -1,18 +1,22 @@
 package com.scheduleassistant.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CalendarViewWeek
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -30,12 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -53,6 +59,7 @@ import com.scheduleassistant.app.ui.components.OverrideFormSheet
 import com.scheduleassistant.app.ui.components.SectionFormSheet
 import com.scheduleassistant.app.ui.designsystem.theme.GlassMeshBackground
 import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
+import com.scheduleassistant.app.ui.designsystem.theme.glassConvex
 import com.scheduleassistant.app.ui.screens.EventsScreen
 import com.scheduleassistant.app.ui.screens.SettingsScreen
 import com.scheduleassistant.app.ui.screens.TimetableScreen
@@ -61,10 +68,44 @@ import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.getDayOfWeek
 import com.scheduleassistant.app.util.millisUntilNext
 import com.scheduleassistant.app.util.nowDateStr
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.time.LocalTime
 
 /** ③ 数字等宽字体 */
 private val MonoFont = FontFamily.Monospace
+
+/** ④ 按小时返回问候语 */
+private fun greetingByHour(hour: Int): String = when (hour) {
+    in 5..10 -> "早上好"
+    in 11..13 -> "中午好"
+    in 14..17 -> "下午好"
+    else -> "晚上好"
+}
+
+/** ④ 励志一言 API（hitokoto，失败返回空串则不显示） */
+private suspend fun fetchMotto(): String = withContext(Dispatchers.IO) {
+    runCatching {
+        val conn = (URL("https://v1.hitokoto.cn/?c=d&encode=json").openConnection() as HttpURLConnection).apply {
+            connectTimeout = 5000
+            readTimeout = 5000
+            setRequestProperty("User-Agent", "schedule-assistant")
+        }
+        try {
+            if (conn.responseCode == 200) {
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                val obj = JSONObject(body)
+                obj.optString("hitokoto", "")
+            } else ""
+        } finally {
+            conn.disconnect()
+        }
+    }.getOrDefault("")
+}
 
 /** 当前打开的表单（底部弹窗） */
 sealed interface OpenForm {
@@ -92,6 +133,18 @@ fun MainScreen(vm: MainViewModel) {
             dateStr = nowDateStr()
         }
     }
+
+    // ④ 顶栏问候语 + 励志一言：每小时刷新
+    var greeting by remember { mutableStateOf(greetingByHour(LocalTime.now().hour)) }
+    var motto by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        while (true) {
+            greeting = greetingByHour(LocalTime.now().hour)
+            motto = fetchMotto()
+            delay(60 * 60 * 1000L)
+        }
+    }
+
     val wd = getDayOfWeek(dateStr)
     val idx = vm.currentWeekIndex
     val weekText = when {
@@ -124,8 +177,8 @@ fun MainScreen(vm: MainViewModel) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            // ③ 窄顶栏：自定义 Row（约 40dp），只保留日期+周次；玻璃半透
-            Row(
+            // ③④ 玻璃顶栏：第一行 日期+周次；第二行 问候语(姓名) + 励志一言
+            Column(
                 Modifier
                     .fillMaxWidth()
                     .background(tokens.tintConvex)
@@ -134,8 +187,7 @@ fun MainScreen(vm: MainViewModel) {
                             drawRect(color = tokens.borderHi, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
                         }
                     )
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
                     "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
@@ -144,6 +196,30 @@ fun MainScreen(vm: MainViewModel) {
                     fontFamily = MonoFont,
                     color = tokens.textPrimary
                 )
+                // ④ 问候语 + 一言
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val name = meta.userName.trim()
+                    Text(
+                        if (name.isBlank()) "$greeting~" else "$greeting，$name 老师~",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = tokens.textSecondary
+                    )
+                    if (motto.isNotBlank()) {
+                        Text(
+                            "「$motto」",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = tokens.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                }
             }
         },
         bottomBar = {
@@ -182,15 +258,22 @@ fun MainScreen(vm: MainViewModel) {
             }
         },
         floatingActionButton = {
-            // ⑨ 课表改用"编辑模式"添加课程，去掉课表页 FAB
+            // ③ 玻璃圆形 FAB：无方框感，点击添加日程（课表页用编辑模式添加课程）
             if (route == "today" || route == "events") {
-                FloatingActionButton(
-                    onClick = {
-                        form = OpenForm.Event(null)
-                    },
-                    containerColor = tokens.tintConvex,
-                    contentColor = tokens.textPrimary
-                ) { Icon(Icons.Filled.Add, "添加") }
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .glassConvex(cornerRadius = 28.dp, tokens = tokens)
+                        .clip(CircleShape)
+                        .clickable { form = OpenForm.Event(null) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Add, "添加日程",
+                        tint = tokens.textPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     ) { padding ->

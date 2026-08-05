@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,9 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Event
 import com.scheduleassistant.app.ui.MainViewModel
+import com.scheduleassistant.app.ui.designsystem.component.GlassImageLayer
 import com.scheduleassistant.app.ui.designsystem.theme.LocalGlassTokens
 import com.scheduleassistant.app.ui.designsystem.theme.glassConvex
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
+import com.scheduleassistant.app.util.backgroundImageModel
 import com.scheduleassistant.app.util.getDayOfWeek
 import com.scheduleassistant.app.util.nowDateStr
 
@@ -43,6 +46,11 @@ fun EventsScreen(
     onEditEvent: (Event) -> Unit
 ) {
     val events by vm.events.collectAsState()
+    val settings by vm.settings.collectAsState()
+
+    // ⑤ 图片背景时，日程卡片叠加模糊背景图做毛玻璃
+    val isImageBg = settings.background == "image"
+    val bgModel = remember(settings.bgImage) { backgroundImageModel(settings.bgImage) }
 
     // ② 已过完的日程自动隐藏（只显示今天及以后）
     val today = nowDateStr()
@@ -84,6 +92,8 @@ fun EventsScreen(
                         .glassConvex(cornerRadius = 14.dp, tokens = tokens)
                         .clickable { onEditEvent(e) }
                 ) {
+                    // ⑤ 图片背景：毛玻璃底图
+                    if (isImageBg) GlassImageLayer(bgModel, 14.dp)
                     Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).clip(CircleShape).background(accent))
                         Column(Modifier.padding(start = 12.dp).weight(1f)) {
