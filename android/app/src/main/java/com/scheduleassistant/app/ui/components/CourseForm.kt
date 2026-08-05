@@ -65,8 +65,8 @@ fun CourseFormSheet(
         ) {
             Text(
                 if (initial == null) "添加课程" else "编辑课程",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp)
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 0.dp)
             )
 
             // ④ 星期 · 节次固定信息（标题下方展示，无需选择）

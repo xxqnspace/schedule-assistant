@@ -68,8 +68,8 @@ fun CountdownFormSheet(
         ) {
             Text(
                 if (initial == null) "添加倒计时" else "编辑倒计时",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp)
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 0.dp)
             )
 
             FormColumn {

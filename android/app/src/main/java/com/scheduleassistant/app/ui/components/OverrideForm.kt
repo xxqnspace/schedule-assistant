@@ -88,8 +88,8 @@ fun OverrideFormSheet(
         ) {
             Text(
                 if (initial == null) "添加调课 / 调休" else "编辑调课 / 调休",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp)
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 0.dp)
             )
 
             FormColumn {

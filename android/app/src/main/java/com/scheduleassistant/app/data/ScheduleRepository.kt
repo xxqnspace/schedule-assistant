@@ -75,14 +75,20 @@ class ScheduleRepository(
 
     // ---------- meta ----------
     suspend fun updateMeta(patch: Meta.() -> Meta) {
-        val cur = dao.getMetaNow() ?: Meta()
-        dao.upsertMeta(cur.patch())
+        // 修复：getMetaNow 是同步 DAO 调用，必须切 IO 线程（主线程会抛 Cannot access database on the main thread）
+        withContext(Dispatchers.IO) {
+            val cur = dao.getMetaNow() ?: Meta()
+            dao.upsertMeta(cur.patch())
+        }
     }
 
     // ---------- settings ----------
     suspend fun updateSettings(patch: AppSettings.() -> AppSettings) {
-        val cur = dao.getSettingsNow() ?: defaultSettings()
-        dao.upsertSettings(cur.patch())
+        // 修复：getSettingsNow 是同步 DAO 调用，必须切 IO 线程
+        withContext(Dispatchers.IO) {
+            val cur = dao.getSettingsNow() ?: defaultSettings()
+            dao.upsertSettings(cur.patch())
+        }
     }
 
     // ---------- sections ----------
@@ -130,7 +136,8 @@ class ScheduleRepository(
     }
 
     // ============ 导出 / 导入（与网页版 schedule-data.json 格式兼容）============
-    fun exportJson(): String {
+    // 修复：内部调用同步 DAO 方法（getXxxNow），必须挂起并在 IO 线程执行
+    suspend fun exportJson(): String = withContext(Dispatchers.IO) {
         val settings = dao.getSettingsNow() ?: defaultSettings()
         val sections = dao.getSectionsNow()
         val overrides = dao.getOverridesNow()
@@ -238,7 +245,7 @@ class ScheduleRepository(
             }
         })
 
-        return root.toString(2)
+        root.toString(2)
     }
 
     /**
@@ -247,6 +254,8 @@ class ScheduleRepository(
      * 导入时校验字段合法性（坏数据跳过不入库）；调课按日期去重（同日期保留后一条）。
      */
     suspend fun importJson(json: String) {
+        // 修复：同步 DAO 调用必须在 IO 线程（含事务内的所有读写）
+        withContext(Dispatchers.IO) {
         val root = JSONObject(json)
         val metaObj = root.optJSONObject("meta")
         val settingsObj = root.optJSONObject("settings")
@@ -409,6 +418,7 @@ class ScheduleRepository(
             overrideCourses.forEach { dao.upsertOverrideCourse(it) }
             events.forEach { dao.upsertEvent(it) }
             countdowns.forEach { dao.upsertCountdown(it) }
+        }
         }
     }
 }

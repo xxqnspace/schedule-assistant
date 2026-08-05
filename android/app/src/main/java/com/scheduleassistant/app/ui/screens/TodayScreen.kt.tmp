@@ -138,7 +138,6 @@ fun TodayScreen(
         }
 
         item {
-            // ④ 标题只保留"今日安排"（去掉日期星期）
             Text(
                 "今日安排",
                 style = MaterialTheme.typography.titleMedium,
@@ -218,14 +217,14 @@ fun TodayScreen(
                             Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // ② 最左侧：类型文字（上课/工作/会议/备课/值班/其他），横排居中
+                            // ② 最左侧：类型文字（上课/工作/会议/备课/值班/其他）
                             Column(
                                 Modifier.width(44.dp).padding(end = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     typeLabel,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = accent,
                                     textAlign = TextAlign.Center,
@@ -240,14 +239,14 @@ fun TodayScreen(
                                 if (item.allDay) {
                                     Text(
                                         "全天",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
                                     )
                                 } else {
                                     Text(
                                         item.start ?: "--",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = accent,
                                         fontFamily = MonoFont,
@@ -255,7 +254,7 @@ fun TodayScreen(
                                     )
                                     Text(
                                         item.end ?: "",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontFamily = MonoFont,
                                         textAlign = TextAlign.Center
@@ -291,7 +290,7 @@ fun TodayScreen(
                                         val remainMin = startDate?.let { ((it.time - now) / 60_000L).coerceAtLeast(1) } ?: 1L
                                         Text(
                                             "$remainMin 分钟后",
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = accent,
                                             fontFamily = MonoFont

@@ -66,8 +66,8 @@ fun EventFormSheet(
         ) {
             Text(
                 if (initial == null) "添加日程" else "编辑日程",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp)
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 0.dp)
             )
 
             // ④ 紧凑布局：间距 8dp，全天与提醒合并一行
