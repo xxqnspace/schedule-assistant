@@ -1,6 +1,8 @@
 <resources>
+    <!-- ① 状态栏：品牌蓝背景 + 白色图标（不再透明融入白色背景） -->
     <style name="Theme.ScheduleApp" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">#2563EB</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 </resources>

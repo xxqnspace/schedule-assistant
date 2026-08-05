@@ -2,6 +2,7 @@ package com.scheduleassistant.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -17,9 +18,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -29,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -73,7 +72,6 @@ sealed interface OpenForm {
     data class Countdown(val initial: com.scheduleassistant.app.data.model.Countdown?) : OpenForm
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(vm: MainViewModel) {
     var route by rememberSaveable { mutableStateOf("today") }
@@ -119,20 +117,21 @@ fun MainScreen(vm: MainViewModel) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            // ① 精简顶栏：去掉"日程助手"标题与日历图标，只保留日期/周次
-            TopAppBar(
-                title = {
-                    Text(
-                        "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = MonoFont
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+            // ③ 窄顶栏：自定义 Row（约 40dp），只保留日期+周次
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = MonoFont
                 )
-            )
+            }
         },
         bottomBar = {
             NavigationBar {

@@ -2,6 +2,7 @@ package com.scheduleassistant.app.ui
 
 import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -85,7 +86,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 repo.updateMeta { copy(semesterName = semesterName, semesterStart = semesterStart, userName = userName) }
                 reschedule()
-            }.onFailure { Log.e(TAG, "saveMeta 失败", it) }
+            }.onFailure {
+                Log.e(TAG, "saveMeta 失败", it)
+                Toast.makeText(getApplication(), "保存失败：${it.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -95,7 +99,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 repo.updateSettings(patch)
                 scheduleReschedule()
-            }.onFailure { Log.e(TAG, "updateSettings 失败", it) }
+            }.onFailure {
+                Log.e(TAG, "updateSettings 失败", it)
+                Toast.makeText(getApplication(), "设置保存失败：${it.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

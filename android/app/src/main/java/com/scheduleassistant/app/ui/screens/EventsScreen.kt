@@ -31,6 +31,7 @@ import com.scheduleassistant.app.data.model.Event
 import com.scheduleassistant.app.ui.MainViewModel
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.getDayOfWeek
+import com.scheduleassistant.app.util.nowDateStr
 
 private val EVENT_TYPE_LABELS = mapOf(
     "work" to "工作", "meeting" to "会议", "prepare" to "备课", "duty" to "值班", "other" to "其他"
@@ -44,14 +45,18 @@ fun EventsScreen(
 ) {
     val events by vm.events.collectAsState()
 
-    val grouped = events
+    // ② 已过完的日程自动隐藏（只显示今天及以后）
+    val today = nowDateStr()
+    val visibleEvents = events.filter { it.date >= today }
+
+    val grouped = visibleEvents
         .sortedWith(compareBy<Event>({ it.date }, { if (it.allDay) "00:00" else it.start.ifBlank { "99:99" } })
             .thenBy { it.title })
         .groupBy { it.date }
 
-    if (events.isEmpty()) {
+    if (visibleEvents.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("还没有工作日程，点右下角 + 添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("暂无日程（已过完的日程已自动隐藏）", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
