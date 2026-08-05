@@ -1,6 +1,7 @@
 package com.scheduleassistant.app.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -41,8 +42,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         // 修复（H4）：播种完成后才注册提醒，串行执行，消除 600ms 硬编码竞态
         viewModelScope.launch {
-            repo.seedIfEmpty()
-            ReminderScheduler.scheduleAll(getApplication())
+            runCatching {
+                repo.seedIfEmpty()
+                ReminderScheduler.scheduleAll(getApplication())
+            }.onFailure { Log.e(TAG, "init scheduleAll 失败", it) }
         }
         val eager = SharingStarted.Eagerly
         meta = repo.metaFlow.map { it ?: Meta() }.stateIn(viewModelScope, eager, Meta())
@@ -56,9 +59,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         countdowns = repo.countdownsFlow.stateIn(viewModelScope, eager, emptyList())
     }
 
-    /** 立即重注册（用于初始化 / 导入 / 重置等大变更） */
+    /** 立即重注册（用于初始化 / 导入 / 重置等大变更）；异常不外抛避免崩溃 */
     private suspend fun reschedule() {
-        ReminderScheduler.scheduleAll(getApplication())
+        runCatching { ReminderScheduler.scheduleAll(getApplication()) }
+            .onFailure { Log.e(TAG, "reschedule 失败", it) }
     }
 
     /** 防抖重注册（M16）：连续小变更 400ms 内合并为一次全量重注册 */
@@ -67,7 +71,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         rescheduleJob?.cancel()
         rescheduleJob = viewModelScope.launch {
             delay(400)
-            ReminderScheduler.scheduleAll(getApplication())
+            runCatching { ReminderScheduler.scheduleAll(getApplication()) }
+                .onFailure { Log.e(TAG, "scheduleReschedule 失败", it) }
         }
     }
 
@@ -77,70 +82,130 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ---------- meta ----------
     fun saveMeta(semesterName: String, semesterStart: String, userName: String) {
         viewModelScope.launch {
-            repo.updateMeta { copy(semesterName = semesterName, semesterStart = semesterStart, userName = userName) }
-            reschedule()
+            runCatching {
+                repo.updateMeta { copy(semesterName = semesterName, semesterStart = semesterStart, userName = userName) }
+                reschedule()
+            }.onFailure { Log.e(TAG, "saveMeta 失败", it) }
         }
     }
 
     // ---------- settings ----------
     fun updateSettings(patch: AppSettings.() -> AppSettings) {
-        viewModelScope.launch { repo.updateSettings(patch); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.updateSettings(patch)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "updateSettings 失败", it) }
+        }
     }
 
     // ---------- sections ----------
     fun saveSection(section: Section) {
-        viewModelScope.launch { repo.upsertSection(section) }
+        viewModelScope.launch {
+            runCatching { repo.upsertSection(section) }
+                .onFailure { Log.e(TAG, "saveSection 失败", it) }
+        }
     }
 
     fun removeSection(id: String) {
-        viewModelScope.launch { repo.deleteSection(id) }
+        viewModelScope.launch {
+            runCatching { repo.deleteSection(id) }
+                .onFailure { Log.e(TAG, "removeSection 失败", it) }
+        }
     }
 
     // ---------- courses ----------
     fun saveCourse(c: Course) {
-        viewModelScope.launch { repo.upsertCourse(c); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.upsertCourse(c)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "saveCourse 失败", it) }
+        }
     }
 
     fun removeCourse(c: Course) {
-        viewModelScope.launch { repo.deleteCourse(c); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.deleteCourse(c)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "removeCourse 失败", it) }
+        }
     }
 
     // ---------- overrides ----------
     fun saveOverride(o: Override, courses: List<OverrideCourse>) {
-        viewModelScope.launch { repo.upsertOverride(o, courses); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.upsertOverride(o, courses)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "saveOverride 失败", it) }
+        }
     }
 
     fun removeOverride(o: Override) {
-        viewModelScope.launch { repo.deleteOverride(o); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.deleteOverride(o)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "removeOverride 失败", it) }
+        }
     }
 
     // ---------- events ----------
     fun saveEvent(e: Event) {
-        viewModelScope.launch { repo.upsertEvent(e); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.upsertEvent(e)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "saveEvent 失败", it) }
+        }
     }
 
     fun removeEvent(e: Event) {
-        viewModelScope.launch { repo.deleteEvent(e); scheduleReschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.deleteEvent(e)
+                scheduleReschedule()
+            }.onFailure { Log.e(TAG, "removeEvent 失败", it) }
+        }
     }
 
     // ---------- countdowns ----------
     fun saveCountdown(c: Countdown) {
-        viewModelScope.launch { repo.upsertCountdown(c) }
+        viewModelScope.launch {
+            runCatching { repo.upsertCountdown(c) }
+                .onFailure { Log.e(TAG, "saveCountdown 失败", it) }
+        }
     }
 
     fun removeCountdown(c: Countdown) {
-        viewModelScope.launch { repo.deleteCountdown(c) }
+        viewModelScope.launch {
+            runCatching { repo.deleteCountdown(c) }
+                .onFailure { Log.e(TAG, "removeCountdown 失败", it) }
+        }
     }
 
     // ---------- 重置 / 导入导出 ----------
     fun resetAll() {
-        viewModelScope.launch { repo.resetAll(); reschedule() }
+        viewModelScope.launch {
+            runCatching {
+                repo.resetAll()
+                reschedule()
+            }.onFailure { Log.e(TAG, "resetAll 失败", it) }
+        }
     }
 
     suspend fun exportJson(): String = repo.exportJson()
 
     suspend fun importJson(json: String) {
-        repo.importJson(json)
-        reschedule()
+        runCatching {
+            repo.importJson(json)
+            reschedule()
+        }.onFailure { Log.e(TAG, "importJson 失败", it) }
+    }
+
+    companion object {
+        private const val TAG = "MainViewModel"
     }
 }

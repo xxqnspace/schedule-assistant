@@ -8,7 +8,6 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -86,7 +85,6 @@ import com.scheduleassistant.app.util.backgroundImageSource
 import com.scheduleassistant.app.util.isValidDate
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.ui.components.showDatePicker
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -173,34 +171,7 @@ fun SettingsScreen(
         }
     }
 
-    // ⑧ 本地相册选择背景图：复制到应用内部存储（避免内容 URI 权限失效）
-    // ⑧ 本地相册选择背景图：使用系统照片选择器（Photo Picker），
-    // 选择后复制到应用内部存储（避免内容 URI 权限失效），并校验复制结果
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri == null) {
-            Toast.makeText(context, "未选择图片", Toast.LENGTH_SHORT).show()
-            return@rememberLauncherForActivityResult
-        }
-        scope.launch(Dispatchers.IO) {
-            runCatching {
-                val file = File(context.filesDir, "background_image")
-                val input = context.contentResolver.openInputStream(uri)
-                    ?: throw IllegalStateException("无法读取所选图片")
-                input.use { ins ->
-                    file.outputStream().use { out -> ins.copyTo(out) }
-                }
-                if (!file.exists() || file.length() == 0L) {
-                    throw IllegalStateException("图片复制失败")
-                }
-                ContextCompat.getMainExecutor(context).execute {
-                    vm.updateSettings { copy(background = "image", bgImage = file.absolutePath) }
-                    Toast.makeText(context, "背景图已设置", Toast.LENGTH_SHORT).show()
-                }
-            }.onFailure {
-                ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "图片导入失败：${it.message}", Toast.LENGTH_SHORT).show() }
-            }
-        }
-    }
+    // ③ 背景图仅支持 URL（已去掉本地相册上传，避免相册/文件选择器兼容问题）
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -228,13 +199,18 @@ fun SettingsScreen(
                 LabeledTextField("姓名 / 称呼", userName, { userName = it }, placeholder = "可选")
                 Button(
                     onClick = {
-                        val start = semesterStart.trim()
-                        if (start.isNotBlank() && !isValidDate(start)) {
-                            Toast.makeText(context, "学期起始日格式应为 yyyy-MM-dd", Toast.LENGTH_SHORT).show()
-                            return@Button
+                        // ① 保存流程兜底：任何异常不崩溃，Toast 提示
+                        runCatching {
+                            val start = semesterStart.trim()
+                            if (start.isNotBlank() && !isValidDate(start)) {
+                                Toast.makeText(context, "学期起始日格式应为 yyyy-MM-dd", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            vm.saveMeta(semesterName.trim(), start, userName.trim())
+                            Toast.makeText(context, "已保存", Toast.LENGTH_SHORT).show()
+                        }.onFailure {
+                            Toast.makeText(context, "保存失败：${it.message}", Toast.LENGTH_SHORT).show()
                         }
-                        vm.saveMeta(semesterName.trim(), start, userName.trim())
-                        Toast.makeText(context, "已保存", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("保存学期信息") }
@@ -374,10 +350,6 @@ fun SettingsScreen(
                             }
                         }) { Text("应用") }
                     }
-                    OutlinedButton(
-                        onClick = { imageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("从相册选择") }
                     OutlinedButton(
                         onClick = { vm.updateSettings { copy(background = "solid", bgImage = "") } },
                         modifier = Modifier.fillMaxWidth()

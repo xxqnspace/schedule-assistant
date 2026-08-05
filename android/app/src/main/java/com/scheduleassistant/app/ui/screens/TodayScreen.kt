@@ -216,6 +216,20 @@ fun TodayScreen(
                             Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // ② 最左侧：类型文字（上课/工作/会议/备课/值班/其他）
+                            Column(
+                                Modifier.width(30.dp).padding(end = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    typeLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accent,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2
+                                )
+                            }
                             // ② 日程时间：独立居中区域（所有日程都显示开始/结束时间）
                             Column(
                                 Modifier.width(58.dp).padding(end = 10.dp),
