@@ -39,9 +39,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.scheduleassistant.app.util.backgroundImageModel
-
-/** ③ 数字等宽字体 */
-private val MonoFont = FontFamily.Monospace
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Course
@@ -62,6 +59,9 @@ import com.scheduleassistant.app.util.getDayOfWeek
 import com.scheduleassistant.app.util.millisUntilNext
 import com.scheduleassistant.app.util.nowDateStr
 import kotlinx.coroutines.delay
+
+/** ③ 数字等宽字体 */
+private val MonoFont = FontFamily.Monospace
 
 /** 当前打开的表单（底部弹窗） */
 sealed interface OpenForm {
