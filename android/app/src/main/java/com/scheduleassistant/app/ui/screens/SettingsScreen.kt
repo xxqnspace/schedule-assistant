@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -71,6 +72,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Override
 import com.scheduleassistant.app.data.model.Section
@@ -172,13 +174,23 @@ fun SettingsScreen(
     }
 
     // ⑧ 本地相册选择背景图：复制到应用内部存储（避免内容 URI 权限失效）
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    // ⑧ 本地相册选择背景图：使用系统照片选择器（Photo Picker），
+    // 选择后复制到应用内部存储（避免内容 URI 权限失效），并校验复制结果
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) {
+            Toast.makeText(context, "未选择图片", Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
         scope.launch(Dispatchers.IO) {
             runCatching {
                 val file = File(context.filesDir, "background_image")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    file.outputStream().use { output -> input.copyTo(output) }
+                val input = context.contentResolver.openInputStream(uri)
+                    ?: throw IllegalStateException("无法读取所选图片")
+                input.use { ins ->
+                    file.outputStream().use { out -> ins.copyTo(out) }
+                }
+                if (!file.exists() || file.length() == 0L) {
+                    throw IllegalStateException("图片复制失败")
                 }
                 ContextCompat.getMainExecutor(context).execute {
                     vm.updateSettings { copy(background = "image", bgImage = file.absolutePath) }
@@ -325,11 +337,11 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    // 预览（model 安全构造：本地文件不存在/为空时不渲染，不崩溃）
+                    // 预览（model 安全构造：本地文件不存在/为空时不渲染，不崩溃；限尺寸防大图 OOM）
                     val previewModel = backgroundImageModel(settings.bgImage)
                     if (previewModel != null) {
                         AsyncImage(
-                            model = previewModel,
+                            model = ImageRequest.Builder(context).data(previewModel).size(1600).build(),
                             contentDescription = "背景图预览",
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -363,7 +375,7 @@ fun SettingsScreen(
                         }) { Text("应用") }
                     }
                     OutlinedButton(
-                        onClick = { imageLauncher.launch("image/*") },
+                        onClick = { imageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("从相册选择") }
                     OutlinedButton(

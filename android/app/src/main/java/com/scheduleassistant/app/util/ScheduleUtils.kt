@@ -21,7 +21,8 @@ data class TimelineItem(
     val reminder: Int,
     val kind: String,     // course | event
     val type: String,     // 仅 event 使用
-    val sectionName: String
+    val sectionName: String,
+    val cls: String = ""  // 仅 course 使用：班级
 )
 
 private fun weekMatch(type: String, odd: Boolean): Boolean = when (type) {
@@ -89,7 +90,7 @@ fun getDayTimeline(
             location = c.location, start = sec?.start, end = sec?.end,
             color = if (c.color.isBlank()) COURSE_COLORS[0] else c.color, note = c.note,
             allDay = false, reminder = defaultReminder, kind = "course",
-            type = "", sectionName = sec?.name ?: ""
+            type = "", sectionName = sec?.name ?: "", cls = c.cls
         )
     }
 

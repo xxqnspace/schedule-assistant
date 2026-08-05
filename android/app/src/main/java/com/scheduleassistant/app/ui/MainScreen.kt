@@ -32,9 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.scheduleassistant.app.util.backgroundImageModel
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Countdown
@@ -74,6 +76,7 @@ fun MainScreen(vm: MainViewModel) {
     var form by remember { mutableStateOf<OpenForm>(OpenForm.None) }
     val meta by vm.meta.collectAsState()
     val settings by vm.settings.collectAsState()
+    val context = LocalContext.current
 
     // 修复（M11）：跨午夜自动刷新顶栏日期与周次
     var dateStr by remember { mutableStateOf(nowDateStr()) }
@@ -91,12 +94,12 @@ fun MainScreen(vm: MainViewModel) {
         else -> "第 $idx 周 · ${if (idx % 2 == 1) "单周" else "双周"}"
     }
 
-    // ⑧ 背景图 + 半透明遮罩，内容浮于其上（⑤ model 安全构造，本地文件不存在不渲染）
+    // ⑧ 背景图 + 半透明遮罩，内容浮于其上（⑤ model 安全构造；限尺寸防大图 OOM 闪退）
     Box(Modifier.fillMaxSize()) {
         val bgModel = backgroundImageModel(settings.bgImage)
         if (settings.background == "image" && bgModel != null) {
             AsyncImage(
-                model = bgModel,
+                model = ImageRequest.Builder(context).data(bgModel).size(1920).build(),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop

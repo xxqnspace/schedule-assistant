@@ -112,7 +112,9 @@ fun CourseFormSheet(
                         if (name.isBlank()) return@Button
                         onSave(
                             Course(
-                                id = initial?.id ?: uid("c"),
+                                // ② 修复：新建课程时 initial.id 是 ""（非 null），
+                                // 直接使用会导致多条课程共用空主键、后写覆盖先写（丢课程）。
+                                id = initial?.id?.takeIf { it.isNotBlank() } ?: uid("c"),
                                 name = name.trim(),
                                 // ⑥ 不再编辑地点/教师：保存时保留原值（不丢失导入数据）
                                 location = initial?.location ?: "",

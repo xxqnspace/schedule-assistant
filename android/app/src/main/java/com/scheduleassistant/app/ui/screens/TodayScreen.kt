@@ -150,10 +150,17 @@ fun TodayScreen(
                 }
             }
         } else {
+            // ① 第一个即将开始（未完成且未到开始时间）的日程，右侧显示"距开始"
+            val firstUpcomingId = ordered.firstOrNull { item ->
+                !itemDone(item) &&
+                    item.start?.let { timeToDate(dateStr, it)?.time?.let { t -> t > now } } == true
+            }?.id
+
             items(ordered, key = { it.id }) { item ->
                 val isEvent = item.kind == "event"
                 val done = itemDone(item)
-                // ② 各项安排前不同颜色：上课蓝 / 会议红 / 备课绿 / 值班橙 / 工作青 / 其他灰
+                val isUpcoming = item.id == firstUpcomingId
+                // ① 各项安排前不同颜色：上课蓝 / 工作青 / 会议红 / 备课绿 / 值班橙 / 其他灰
                 val accent = if (isEvent) {
                     runCatching { Color(android.graphics.Color.parseColor(EVENT_TYPE_COLORS[item.type] ?: item.color)) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
@@ -180,69 +187,113 @@ fun TodayScreen(
                                 }
                             } else Modifier
                         ),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(Modifier.fillMaxWidth()) {
+                        // ① 最左侧：类型颜色标记
                         Box(
                             Modifier.width(8.dp).fillMaxHeight().background(if (done) accent.copy(alpha = 0.35f) else accent)
                         )
-                        Column(Modifier.padding(14.dp).fillMaxWidth()) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth()) {
+                            // 第一行：类型名 + 日程名 + 右侧（首个日程显示"距开始"）
                             Row(
                                 Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // ② 类型色圆点 + 类型名
-                                Box(
-                                    Modifier.size(10.dp).clip(CircleShape).background(accent)
-                                )
-                                Spacer(Modifier.width(6.dp))
                                 Text(
                                     typeLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = accent,
-                                    fontWeight = FontWeight.Bold
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accent
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     item.title.ifBlank { "(无标题)" },
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                if (done) {
-                                    // ③ 已完成标签
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                                    ) {
+                                when {
+                                    // ① 仅第一个即将开始的日程显示"距开始"
+                                    isUpcoming -> {
+                                        val startDate = timeToDate(dateStr, item.start)
+                                        val remainMin = startDate?.let { (it.time - now) / 60_000L } ?: 0L
                                         Text(
-                                            "已完成",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            if (remainMin >= 120) "距开始 ${item.start}"
+                                            else "距开始 $remainMin 分钟",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = accent
                                         )
                                     }
-                                } else {
+                                    done -> {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                        ) {
+                                            Text(
+                                                "已完成",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        Text(
+                                            if (item.allDay) "全天"
+                                            else listOfNotNull(item.start, item.end).joinToString(" - "),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                            // 第二行：课程显示班级（几班），事件显示时间/地点等
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (!isEvent) {
+                                    // ① 上课：展示几班
+                                    if (item.cls.isNotBlank()) {
+                                        Text(
+                                            "${item.cls} 班",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (item.sectionName.isNotBlank()) {
                                     Text(
-                                        if (item.allDay) "全天"
-                                        else listOfNotNull(item.start, item.end).joinToString(" - "),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        item.sectionName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = accent
+                                    )
+                                }
+                                if (item.location.isNotBlank()) {
+                                    Text(
+                                        "📍 ${item.location}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
                                 }
                             }
-                            if (item.sectionName.isNotBlank()) {
-                                Text(item.sectionName, style = MaterialTheme.typography.labelSmall, color = accent)
-                            }
-                            if (item.location.isNotBlank()) {
-                                Text("📍 ${item.location}", style = MaterialTheme.typography.bodyMedium)
-                            }
                             if (item.note.isNotBlank()) {
-                                Text(item.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    item.note,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
