@@ -169,6 +169,7 @@ fun TodayScreen(
                 val isEvent = item.kind == "event"
                 val done = itemDone(item)
                 val isUpcoming = item.id == firstUpcomingId
+                val typeLabel = if (isEvent) (EVENT_TYPE_LABELS[item.type] ?: item.type) else "上课"
                 // ② 各项安排前不同颜色：上课蓝 / 工作青 / 会议红 / 备课绿 / 值班橙 / 其他灰
                 val accent = if (isEvent) {
                     runCatching { Color(android.graphics.Color.parseColor(EVENT_TYPE_COLORS[item.type] ?: item.color)) }
