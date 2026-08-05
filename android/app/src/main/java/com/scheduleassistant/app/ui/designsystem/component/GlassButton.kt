@@ -64,8 +64,8 @@ fun GlassButton(
             .height(height)
             .scale(scaleAnim.value)
             .then(
-                if (isPressed && enabled) glassConcave(cornerRadius, tokens)
-                else glassConvex(cornerRadius, tokens)
+                if (isPressed && enabled) Modifier.glassConcave(cornerRadius, tokens)
+                else Modifier.glassConvex(cornerRadius, tokens)
             )
             .clip(RoundedCornerShape(cornerRadius))
             .clickable(
