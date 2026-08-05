@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -48,13 +49,21 @@ import com.scheduleassistant.app.util.parseDateTimeTarget
 import com.scheduleassistant.app.util.timeToDate
 import kotlinx.coroutines.delay
 
-/** ③ 日程类型 -> 强调色（用户未自定义颜色时的默认配色） */
+/** ② 各项安排类型 -> 强调色（上课蓝 / 工作青 / 会议红 / 备课绿 / 值班橙 / 其他灰） */
 private val EVENT_TYPE_COLORS = mapOf(
-    "work" to "#2563eb",
-    "meeting" to "#7c3aed",
-    "prepare" to "#16a34a",
-    "duty" to "#ea580c",
-    "other" to "#64748b"
+    "work" to "#0891b2",      // 工作：青
+    "meeting" to "#dc2626",   // 会议：红
+    "prepare" to "#16a34a",   // 备课：绿
+    "duty" to "#ea580c",      // 值班：橙
+    "other" to "#64748b"      // 其他：灰
+)
+
+/** 上课（课程）统一使用蓝色 */
+private val COURSE_COLOR = "#2563eb"
+
+/** 事件类型中文名 */
+private val EVENT_TYPE_LABELS = mapOf(
+    "work" to "工作", "meeting" to "会议", "prepare" to "备课", "duty" to "值班", "other" to "其他"
 )
 
 @Composable
@@ -143,14 +152,15 @@ fun TodayScreen(
             items(ordered, key = { it.id }) { item ->
                 val isEvent = item.kind == "event"
                 val done = itemDone(item)
-                // ③ 不同类型分配不同颜色
+                // ② 各项安排前不同颜色：上课蓝 / 会议红 / 备课绿 / 值班橙 / 工作青 / 其他灰
                 val accent = if (isEvent) {
                     runCatching { Color(android.graphics.Color.parseColor(EVENT_TYPE_COLORS[item.type] ?: item.color)) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                 } else {
-                    runCatching { Color(android.graphics.Color.parseColor(item.color)) }
+                    runCatching { Color(android.graphics.Color.parseColor(COURSE_COLOR)) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                 }
+                val typeLabel = if (isEvent) (EVENT_TYPE_LABELS[item.type] ?: item.type) else "上课"
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = if (done) {
@@ -173,7 +183,7 @@ fun TodayScreen(
                 ) {
                     Row(Modifier.fillMaxWidth()) {
                         Box(
-                            Modifier.width(6.dp).fillMaxHeight().background(if (done) accent.copy(alpha = 0.35f) else accent)
+                            Modifier.width(8.dp).fillMaxHeight().background(if (done) accent.copy(alpha = 0.35f) else accent)
                         )
                         Column(Modifier.padding(14.dp).fillMaxWidth()) {
                             Row(
@@ -181,6 +191,18 @@ fun TodayScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // ② 类型色圆点 + 类型名
+                                Box(
+                                    Modifier.size(10.dp).clip(CircleShape).background(accent)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    typeLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = accent,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     item.title.ifBlank { "(无标题)" },
                                     style = MaterialTheme.typography.titleSmall,
@@ -253,7 +275,7 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
         ) {
             Box(
                 Modifier
-                    .width(6.dp)
+                    .width(8.dp)
                     .height(38.dp)
                     .clip(RoundedCornerShape(3.dp))
                     .background(accent)
@@ -279,10 +301,11 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
                         )
                         Text(" 还有 ", style = MaterialTheme.typography.bodyLarge)
                         if (days > 0) {
+                            // ① 剩余天数略微大于正文即可
                             Text(
                                 "$days",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Black,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = accent
                             )
                             Text(" 天", style = MaterialTheme.typography.bodyLarge)
@@ -290,8 +313,8 @@ private fun CountdownCard(title: String, target: String, color: String, now: Lon
                             val hours = diff / 3_600_000L
                             Text(
                                 "$hours",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Black,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = accent
                             )
                             Text(" 小时", style = MaterialTheme.typography.bodyLarge)

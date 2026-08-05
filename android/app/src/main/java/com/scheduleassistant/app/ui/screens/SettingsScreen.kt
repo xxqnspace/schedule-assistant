@@ -79,6 +79,8 @@ import com.scheduleassistant.app.ui.components.ChipGroup
 import com.scheduleassistant.app.ui.components.FormSectionTitle
 import com.scheduleassistant.app.ui.components.LabeledTextField
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
+import com.scheduleassistant.app.util.backgroundImageModel
+import com.scheduleassistant.app.util.backgroundImageSource
 import com.scheduleassistant.app.util.isValidDate
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.ui.components.showDatePicker
@@ -314,16 +316,32 @@ fun SettingsScreen(
                     settings.background
                 ) { vm.updateSettings { copy(background = it) } }
                 if (settings.background == "image") {
-                    // 预览（URL 或本地文件）
-                    if (settings.bgImage.isNotBlank()) {
+                    // ⑤ 来源标识（URL / 本地相册）
+                    val source = backgroundImageSource(settings.bgImage)
+                    if (source.isNotBlank()) {
+                        Text(
+                            source,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    // 预览（model 安全构造：本地文件不存在/为空时不渲染，不崩溃）
+                    val previewModel = backgroundImageModel(settings.bgImage)
+                    if (previewModel != null) {
                         AsyncImage(
-                            model = if (settings.bgImage.startsWith("http")) settings.bgImage else File(settings.bgImage),
+                            model = previewModel,
                             contentDescription = "背景图预览",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(120.dp)
                                 .clip(RoundedCornerShape(10.dp)),
                             contentScale = ContentScale.Crop
+                        )
+                    } else if (settings.bgImage.isNotBlank()) {
+                        Text(
+                            "图片不可用（本地文件不存在或加载失败），请重新选择",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

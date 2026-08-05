@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- 开机后重新注册提醒 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- ⑤ 背景图：加载 URL 图片必需 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".ScheduleApplication"

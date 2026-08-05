@@ -24,9 +24,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,17 +73,26 @@ fun TimetableScreen(
         modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         item {
-            // 周次切换
+            // ④ 紧凑单行：‹ 第N周·单双周 › + 编辑模式开关（点击周次标题可回本周）
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { viewWeek = (viewWeek - 1).coerceAtLeast(1) }) {
                     Icon(Icons.Filled.NavigateBefore, "上一周")
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("第 $viewWeek 周", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { currentIdx?.let { viewWeek = it } }
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        "第 $viewWeek 周",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
                     Text(
                         if (viewWeek % 2 == 1) "单周" else "双周",
                         style = MaterialTheme.typography.labelSmall,
@@ -93,26 +102,19 @@ fun TimetableScreen(
                 IconButton(onClick = { viewWeek += 1 }) {
                     Icon(Icons.Filled.NavigateNext, "下一周")
                 }
-            }
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (currentIdx != null) {
-                    OutlinedButton(
-                        onClick = { viewWeek = currentIdx },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("回到本周（第 $currentIdx 周）") }
+                Box(Modifier.weight(1f))
+                if (currentIdx != null && viewWeek != currentIdx) {
+                    TextButton(onClick = { viewWeek = currentIdx }) {
+                        Text("回本周", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 // ⑨ 编辑模式开关
                 FilterChip(
                     selected = editMode,
                     onClick = { editMode = !editMode },
-                    label = { Text(if (editMode) "编辑模式：开" else "编辑模式：关") }
+                    label = { Text(if (editMode) "编辑中" else "编辑模式") }
                 )
             }
-            Spacer(Modifier.padding(top = 4.dp))
         }
 
         item {
@@ -179,8 +181,8 @@ fun TimetableScreen(
                         Modifier
                             .weight(1f)
                             .padding(horizontal = 2.dp)
-                            .heightIn(min = 66.dp) // ⑤ 拉高格子
-                            .clip(RoundedCornerShape(8.dp))
+                            .heightIn(min = 46.dp) // ③ 紧凑格子：两行 4 字即可，不拉长
+                            .clip(RoundedCornerShape(6.dp))
                             .background(cellBg)
                             .then(
                                 if (editMode) {
@@ -190,18 +192,18 @@ fun TimetableScreen(
                                     }
                                 } else Modifier
                             )
-                            .padding(5.dp),
+                            .padding(3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         if (list.isNotEmpty()) {
-                            // ⑤ 必须展示课程名称与班级
+                            // ③ 每格只显示课程名（第 1 行）+ 班级（第 2 行）
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     list.first().name.ifBlank { "(课)" },
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
-                                    maxLines = 2,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     color = courseColor
                                 )
@@ -213,16 +215,13 @@ fun TimetableScreen(
                                     overflow = TextOverflow.Ellipsis,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (list.size > 1) {
-                                    Text("+${list.size - 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                }
                             }
                         } else if (editMode) {
                             // ⑨ 编辑模式下空格显示加号
                             Icon(
                                 Icons.Filled.Add, "添加课程",
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                                modifier = Modifier.width(18.dp)
+                                modifier = Modifier.width(16.dp)
                             )
                         }
                     }

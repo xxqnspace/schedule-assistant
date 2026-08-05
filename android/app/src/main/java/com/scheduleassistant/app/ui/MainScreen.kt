@@ -35,7 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import java.io.File
+import com.scheduleassistant.app.util.backgroundImageModel
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Course
@@ -91,11 +91,12 @@ fun MainScreen(vm: MainViewModel) {
         else -> "第 $idx 周 · ${if (idx % 2 == 1) "单周" else "双周"}"
     }
 
-    // ⑧ 背景图 + 半透明遮罩，内容浮于其上
+    // ⑧ 背景图 + 半透明遮罩，内容浮于其上（⑤ model 安全构造，本地文件不存在不渲染）
     Box(Modifier.fillMaxSize()) {
-        if (settings.background == "image" && settings.bgImage.isNotBlank()) {
+        val bgModel = backgroundImageModel(settings.bgImage)
+        if (settings.background == "image" && bgModel != null) {
             AsyncImage(
-                model = if (settings.bgImage.startsWith("http")) settings.bgImage else File(settings.bgImage),
+                model = bgModel,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
