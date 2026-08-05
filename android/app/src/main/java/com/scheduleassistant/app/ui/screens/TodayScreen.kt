@@ -117,6 +117,16 @@ fun TodayScreen(
         return end.time < now
     }
 
+    // ① 进行中判断：非全天、有明确结束时间，且 开始 ≤ now ≤ 结束
+    fun itemInProgress(item: TimelineItem): Boolean {
+        if (item.allDay) return false
+        val startStr = item.start?.ifBlank { null } ?: return false
+        val endStr = item.end?.ifBlank { null } ?: return false
+        val start = timeToDate(dateStr, startStr) ?: return false
+        val end = timeToDate(dateStr, endStr) ?: return false
+        return start.time <= now && now <= end.time
+    }
+
     // ③ 已完成项排到当日最后，其余保持时间顺序
     val ordered = remember(timeline, now) {
         val (active, done) = timeline.partition { !itemDone(it) }
@@ -154,15 +164,16 @@ fun TodayScreen(
                 }
             }
         } else {
-            // ① 第一个即将开始（未完成且未到开始时间）的日程，右侧显示"距开始"
+            // ① 第一个即将开始（未完成、未进行中、且未到开始时间）的日程，右侧显示"距开始"
             val firstUpcomingId = ordered.firstOrNull { item ->
-                !itemDone(item) &&
+                !itemDone(item) && !itemInProgress(item) &&
                     item.start?.let { timeToDate(dateStr, it)?.time?.let { t -> t > now } } == true
             }?.id
 
             items(ordered, key = { it.id }) { item ->
                 val isEvent = item.kind == "event"
                 val done = itemDone(item)
+                val inProgress = itemInProgress(item)
                 val isUpcoming = item.id == firstUpcomingId
                 val typeLabel = if (isEvent) (EVENT_TYPE_LABELS[item.type] ?: item.type) else "上课"
                 // ② 各项安排前不同颜色：上课蓝 / 工作青 / 会议红 / 备课绿 / 值班橙 / 其他灰
@@ -261,6 +272,20 @@ fun TodayScreen(
                                                 "已完成",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    } else if (inProgress) {
+                                        // ① 正在进行的日程：卡片最右端"进行中"标签（强调色）
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = accent.copy(alpha = 0.15f)
+                                        ) {
+                                            Text(
+                                                "进行中",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = accent,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }

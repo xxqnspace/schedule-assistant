@@ -185,8 +185,9 @@ fun TimetableScreen(
                     val courseColor = runCatching { Color(android.graphics.Color.parseColor(list.firstOrNull()?.color ?: "")) }
                         .getOrDefault(MaterialTheme.colorScheme.primary)
                     val cellBg = when {
-                        list.isNotEmpty() -> courseColor.copy(alpha = if (isImageBg) 0.20f else 0.16f)
-                        isTodayCol -> MaterialTheme.colorScheme.primary.copy(alpha = if (isImageBg) 0.08f else 0.06f)
+                        // ② 有课格子：提高背景不透明度，保证课程名/班级清晰可读
+                        list.isNotEmpty() -> courseColor.copy(alpha = if (isImageBg) 0.35f else 0.32f)
+                        isTodayCol -> MaterialTheme.colorScheme.primary.copy(alpha = if (isImageBg) 0.15f else 0.12f)
                         isImageBg -> tokens.tintConvex
                         else -> tokens.tintConcave
                     }
