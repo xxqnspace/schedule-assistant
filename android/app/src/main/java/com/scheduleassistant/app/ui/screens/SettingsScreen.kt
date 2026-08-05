@@ -14,29 +14,40 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,16 +62,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import coil.compose.AsyncImage
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Override
 import com.scheduleassistant.app.data.model.Section
 import com.scheduleassistant.app.ui.MainViewModel
-import com.scheduleassistant.app.ui.components.CardSurface
 import com.scheduleassistant.app.ui.components.ChipGroup
 import com.scheduleassistant.app.ui.components.FormSectionTitle
 import com.scheduleassistant.app.ui.components.LabeledTextField
@@ -68,9 +82,14 @@ import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.isValidDate
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.ui.components.showDatePicker
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+/**
+ * ⑦ 设置页：二级菜单结构（分组卡片可展开），分组标题带图标/加粗主色。
+ * ⑧ 背景图：外观分组内支持 URL 图片与本地相册上传。
+ */
 @Composable
 fun SettingsScreen(
     vm: MainViewModel,
@@ -102,6 +121,15 @@ fun SettingsScreen(
     }
 
     var showReset by remember { mutableStateOf(false) }
+
+    // ⑧ 背景 URL 输入（初始取当前 bgImage，若是 http 开头）
+    var bgUrlText by remember { mutableStateOf(settings.bgImage.takeIf { it.startsWith("http") } ?: "") }
+
+    // ⑦ 分组展开状态（默认全部收起，点击展开）
+    var expandedSections by remember { mutableStateOf(setOf<String>()) }
+    fun toggleSection(key: String) {
+        expandedSections = if (key in expandedSections) expandedSections - key else expandedSections + key
+    }
 
     // 修复（H1/H2）：通知权限与精确闹钟权限状态展示（从设置页返回时自动刷新）
     var notifEnabled by remember { mutableStateOf(false) }
@@ -136,8 +164,26 @@ fun SettingsScreen(
                 vm.importJson(text)
                 ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "已导入数据", Toast.LENGTH_SHORT).show() }
             }.onFailure {
-                // 修复（L6）：展示真实失败原因
                 ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "导入失败：${it.message}", Toast.LENGTH_LONG).show() }
+            }
+        }
+    }
+
+    // ⑧ 本地相册选择背景图：复制到应用内部存储（避免内容 URI 权限失效）
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val file = File(context.filesDir, "background_image")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+                ContextCompat.getMainExecutor(context).execute {
+                    vm.updateSettings { copy(background = "image", bgImage = file.absolutePath) }
+                    Toast.makeText(context, "背景图已设置", Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure {
+                ContextCompat.getMainExecutor(context).execute { Toast.makeText(context, "图片导入失败：${it.message}", Toast.LENGTH_SHORT).show() }
             }
         }
     }
@@ -148,12 +194,17 @@ fun SettingsScreen(
     ) {
         // ---- 学期信息 ----
         item {
-            CardSurface {
-                FormSectionTitle("学期信息")
+            SettingsMenuSection(
+                title = "学期信息",
+                desc = "学期名称 / 起始日 / 姓名",
+                icon = Icons.Filled.School,
+                expanded = "semester" in expandedSections,
+                onToggle = { toggleSection("semester") }
+            ) {
                 LabeledTextField("学期名称", semesterName, { semesterName = it }, placeholder = "如：2025-2026 学年第二学期")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        FormSectionTitle("学期起始日（建议为周一）")
+                        FormSectionTitle("学期起始日（不必是周一）")
                         LabeledTextField("yyyy-MM-dd", semesterStart, { semesterStart = it }, placeholder = "如：2026-02-16")
                     }
                     IconButton(onClick = { showDatePicker(context, semesterStart.ifBlank { nowDateStr() }) { semesterStart = it } }) {
@@ -163,24 +214,29 @@ fun SettingsScreen(
                 LabeledTextField("姓名 / 称呼", userName, { userName = it }, placeholder = "可选")
                 Button(
                     onClick = {
-                        // 修复（M9）：学期起始日格式校验，非法提示且不保存
                         val start = semesterStart.trim()
                         if (start.isNotBlank() && !isValidDate(start)) {
                             Toast.makeText(context, "学期起始日格式应为 yyyy-MM-dd", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         vm.saveMeta(semesterName.trim(), start, userName.trim())
+                        Toast.makeText(context, "已保存", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("保存学期信息") }
             }
         }
 
-        // ---- 提醒与外观 ----
+        // ---- 提醒设置 ----
         item {
-            CardSurface {
-                FormSectionTitle("提醒设置")
-                Text("默认提前提醒（分钟）", style = MaterialTheme.typography.labelMedium)
+            SettingsMenuSection(
+                title = "提醒设置",
+                desc = "提前提醒 / 声音 / 权限",
+                icon = Icons.Filled.Notifications,
+                expanded = "reminder" in expandedSections,
+                onToggle = { toggleSection("reminder") }
+            ) {
+                FormSectionTitle("默认提前提醒（分钟）")
                 ChipGroup(
                     listOf("5" to "5", "10" to "10", "15" to "15", "30" to "30", "60" to "60"),
                     settings.defaultReminder.toString()
@@ -195,7 +251,7 @@ fun SettingsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         if (notifEnabled) "通知：已开启" else "通知：未开启（收不到提醒）",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = if (notifEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                         modifier = Modifier.weight(1f)
                     )
@@ -213,10 +269,11 @@ fun SettingsScreen(
 
                 // 修复（H1）：精确闹钟权限状态 + 跳转引导（Android 12+）
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    FormSectionTitle("精确闹钟")
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            if (exactAlarmOk) "精确闹钟：已开启" else "精确闹钟：未开启（提醒可能延迟）",
-                            style = MaterialTheme.typography.bodyLarge,
+                            if (exactAlarmOk) "已开启" else "未开启（提醒可能延迟）",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = if (exactAlarmOk) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                             modifier = Modifier.weight(1f)
                         )
@@ -232,29 +289,91 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+        }
 
-                FormSectionTitle("外观")
-                Text("主题", style = MaterialTheme.typography.labelMedium)
+        // ---- 外观（含背景图） ----
+        item {
+            SettingsMenuSection(
+                title = "外观",
+                desc = "主题 / 背景图",
+                icon = Icons.Filled.Palette,
+                expanded = "appearance" in expandedSections,
+                onToggle = { toggleSection("appearance") }
+            ) {
+                FormSectionTitle("主题")
                 ChipGroup(
                     listOf("light" to "浅色", "dark" to "深色"),
                     settings.theme
                 ) { vm.updateSettings { copy(theme = it) } }
+
+                // ⑧ 背景图
+                FormSectionTitle("背景")
+                ChipGroup(
+                    listOf("solid" to "纯色", "image" to "图片"),
+                    settings.background
+                ) { vm.updateSettings { copy(background = it) } }
+                if (settings.background == "image") {
+                    // 预览（URL 或本地文件）
+                    if (settings.bgImage.isNotBlank()) {
+                        AsyncImage(
+                            model = if (settings.bgImage.startsWith("http")) settings.bgImage else File(settings.bgImage),
+                            contentDescription = "背景图预览",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LabeledTextField(
+                            "图片 URL",
+                            bgUrlText,
+                            { bgUrlText = it },
+                            placeholder = "https://...",
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedButton(onClick = {
+                            val url = bgUrlText.trim()
+                            if (url.startsWith("http://") || url.startsWith("https://")) {
+                                vm.updateSettings { copy(background = "image", bgImage = url) }
+                                Toast.makeText(context, "背景图已应用", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "请输入 http(s):// 开头的图片地址", Toast.LENGTH_SHORT).show()
+                            }
+                        }) { Text("应用") }
+                    }
+                    OutlinedButton(
+                        onClick = { imageLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("从相册选择") }
+                    OutlinedButton(
+                        onClick = { vm.updateSettings { copy(background = "solid", bgImage = "") } },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("清除背景图") }
+                }
             }
         }
 
         // ---- 节次管理 ----
         item {
-            CardSurface {
+            SettingsMenuSection(
+                title = "节次管理",
+                desc = "上课节次与时间",
+                icon = Icons.Filled.Schedule,
+                expanded = "sections" in expandedSections,
+                onToggle = { toggleSection("sections") }
+            ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    FormSectionTitle("节次管理")
-                    Box(Modifier.weight(1f))
+                    Text("共 ${sections.size} 个节次", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = onAddSection) { Icon(Icons.Filled.Add, "添加节次") }
                 }
                 if (sections.isEmpty()) {
                     Text("尚未设置节次", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 for (s in sections) {
-                    Row(Modifier.fillMaxWidth().clickable { onEditSection(s) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { onEditSection(s) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(s.name, style = MaterialTheme.typography.bodyLarge)
                             Text("${s.start} - ${s.end}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -267,10 +386,15 @@ fun SettingsScreen(
 
         // ---- 调课 / 调休 ----
         item {
-            CardSurface {
+            SettingsMenuSection(
+                title = "调课 / 调休",
+                desc = "停课 / 按某天课表 / 单日自定义",
+                icon = Icons.Filled.SwapHoriz,
+                expanded = "overrides" in expandedSections,
+                onToggle = { toggleSection("overrides") }
+            ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    FormSectionTitle("调课 / 调休")
-                    Box(Modifier.weight(1f))
+                    Text("共 ${overrides.size} 条", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = onAddOverride) { Icon(Icons.Filled.Add, "添加") }
                 }
                 if (overrides.isEmpty()) {
@@ -283,7 +407,7 @@ fun SettingsScreen(
                         "custom" -> "自定义课表（${overrideCourses.count { it.overrideId == o.id }} 节）"
                         else -> o.mode
                     }
-                    Row(Modifier.fillMaxWidth().clickable { onEditOverride(o) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { onEditOverride(o) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(o.date, style = MaterialTheme.typography.bodyLarge)
                             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -296,10 +420,15 @@ fun SettingsScreen(
 
         // ---- 倒计时 ----
         item {
-            CardSurface {
+            SettingsMenuSection(
+                title = "首页倒计时",
+                desc = "最多 3 个",
+                icon = Icons.Filled.Timer,
+                expanded = "countdowns" in expandedSections,
+                onToggle = { toggleSection("countdowns") }
+            ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    FormSectionTitle("首页倒计时（最多 3 个）")
-                    Box(Modifier.weight(1f))
+                    Text("共 ${countdowns.size}/3 个", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = onAddCountdown, enabled = countdowns.size < 3) { Icon(Icons.Filled.Add, "添加倒计时") }
                 }
                 if (countdowns.isEmpty()) {
@@ -307,7 +436,7 @@ fun SettingsScreen(
                 }
                 for (cd in countdowns) {
                     val accent = runCatching { Color(android.graphics.Color.parseColor(cd.color)) }.getOrDefault(MaterialTheme.colorScheme.primary)
-                    Row(Modifier.fillMaxWidth().clickable { onEditCountdown(cd) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { onEditCountdown(cd) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).clip(CircleShape).background(accent).padding(end = 8.dp))
                         Column(Modifier.weight(1f).padding(start = 8.dp)) {
                             Text(cd.title.ifBlank { "(无标题)" }, style = MaterialTheme.typography.bodyLarge)
@@ -321,30 +450,39 @@ fun SettingsScreen(
 
         // ---- 数据 ----
         item {
-            CardSurface {
-                FormSectionTitle("数据备份")
+            SettingsMenuSection(
+                title = "数据备份",
+                desc = "导入 / 导出 / 重置",
+                icon = Icons.Filled.Backup,
+                expanded = "data" in expandedSections,
+                onToggle = { toggleSection("data") }
+            ) {
                 Text("导出 / 导入与网页版 schedule-data.json 完全兼容", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = { exportLauncher.launch("schedule-data.json") }, Modifier.weight(1f)) {
-                        Icon(Icons.Filled.FileDownload, null)
+                        Icon(Icons.Filled.Backup, null)
                         Text(" 导出")
                     }
                     OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }, Modifier.weight(1f)) {
-                        Icon(Icons.Filled.FileUpload, null)
+                        Icon(Icons.Filled.Restore, null)
                         Text(" 导入")
                     }
                 }
                 Button(
                     onClick = { showReset = true },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 ) {
-                    Icon(Icons.Filled.Restore, null)
+                    Icon(Icons.Filled.Delete, null)
                     Text(" 重置全部数据")
                 }
             }
         }
 
-        item { Box(Modifier.fillMaxWidth().padding(8.dp)) }
+        item { Spacer(Modifier.height(8.dp)) }
     }
 
     if (showReset) {
@@ -359,5 +497,54 @@ fun SettingsScreen(
                 OutlinedButton(onClick = { showReset = false }) { Text("取消") }
             }
         )
+    }
+}
+
+/** ⑦ 设置分组卡片：图标 + 加粗主色标题 + 描述，点击展开/收起二级内容 */
+@Composable
+private fun SettingsMenuSection(
+    title: String,
+    desc: String,
+    icon: ImageVector,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        tonalElevation = 1.dp
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (expanded) "收起" else "展开",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (expanded) {
+                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
+            }
+        }
     }
 }

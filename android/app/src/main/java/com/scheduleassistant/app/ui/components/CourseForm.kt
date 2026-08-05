@@ -48,9 +48,6 @@ fun CourseFormSheet(
             initial?.sectionId ?: sections.firstOrNull()?.id ?: ""
         )
     }
-    var location by rememberSaveable { mutableStateOf(initial?.location ?: "") }
-    // 修复（H3）：教师字段保留原值，不再硬编码清空
-    var teacher by rememberSaveable { mutableStateOf(initial?.teacher ?: "") }
     var cls by rememberSaveable { mutableStateOf(initial?.cls ?: "") }
     var color by rememberSaveable { mutableStateOf(initial?.color?.ifBlank { COURSE_COLORS[0] } ?: COURSE_COLORS[0]) }
     var note by rememberSaveable { mutableStateOf(initial?.note ?: "") }
@@ -72,10 +69,12 @@ fun CourseFormSheet(
                 modifier = Modifier.padding(16.dp)
             )
 
-            FormColumn {
+            FormColumn(spacing = 8.dp) {
                 LabeledTextField("课程名称", name, { name = it }, placeholder = "如：高等数学")
+                // ⑥ 上课星期改为下拉选择
                 FormSectionTitle("上课星期")
-                ChipGroup(
+                DropdownField(
+                    "星期",
                     WEEKDAY_NAMES.mapIndexed { i, n -> (i + 1).toString() to n },
                     weekday
                 ) { weekday = it }
@@ -90,19 +89,7 @@ fun CourseFormSheet(
                     sections.map { it.id to "${it.name} (${it.start})" },
                     sectionId
                 ) { sectionId = it }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        LabeledTextField("上课地点", location, { location = it }, placeholder = "如：教三 301")
-                    }
-                    Column(Modifier.weight(1f)) {
-                        LabeledTextField("教师", teacher, { teacher = it }, placeholder = "可选")
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        LabeledTextField("班级", cls, { cls = it }, placeholder = "1-15")
-                    }
-                }
+                LabeledTextField("班级", cls, { cls = it }, placeholder = "如：1-15（课表上显示）")
                 FormSectionTitle("颜色")
                 ColorSwatchRow(color) { color = it }
                 LabeledTextField("备注", note, { note = it }, singleLine = false)
@@ -127,8 +114,9 @@ fun CourseFormSheet(
                             Course(
                                 id = initial?.id ?: uid("c"),
                                 name = name.trim(),
-                                location = location.trim(),
-                                teacher = teacher.trim(),
+                                // ⑥ 不再编辑地点/教师：保存时保留原值（不丢失导入数据）
+                                location = initial?.location ?: "",
+                                teacher = initial?.teacher ?: "",
                                 cls = cls.trim(),
                                 weekday = weekday.toIntOrNull() ?: 1,
                                 weekType = weekType,

@@ -70,7 +70,8 @@ fun EventFormSheet(
                 modifier = Modifier.padding(16.dp)
             )
 
-            FormColumn {
+            // ④ 紧凑布局：间距 8dp，全天与提醒合并一行
+            FormColumn(spacing = 8.dp) {
                 LabeledTextField("标题", title, { title = it }, placeholder = "如：教研组会议")
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f)) {
@@ -91,13 +92,27 @@ fun EventFormSheet(
                 }
 
                 Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    androidx.compose.material3.Checkbox(
-                        checked = allDay,
-                        onCheckedChange = { allDay = it }
+                    Row(
+                        Modifier.weight(1f),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = allDay,
+                            onCheckedChange = { allDay = it }
+                        )
+                        Text("全天", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    LabeledTextField(
+                        "提醒(分钟)",
+                        reminder,
+                        // 修复（M14）：仅数字且限长，避免超大值溢出导致提醒静默丢失
+                        { reminder = it.filter { ch -> ch.isDigit() }.take(5) },
+                        placeholder = "默认 $defaultReminder",
+                        modifier = Modifier.weight(1f)
                     )
-                    Text("全天（无具体时间）")
                 }
 
                 if (!allDay) {
@@ -114,13 +129,6 @@ fun EventFormSheet(
                 }
 
                 LabeledTextField("地点", location, { location = it }, placeholder = "可选")
-                LabeledTextField(
-                    "提醒提前（分钟，留空用默认 $defaultReminder）",
-                    reminder,
-                    // 修复（M14）：仅数字且限长，避免超大值溢出导致提醒静默丢失
-                    { reminder = it.filter { ch -> ch.isDigit() }.take(5) },
-                    placeholder = "默认 $defaultReminder 分钟"
-                )
                 FormSectionTitle("颜色")
                 ColorSwatchRow(color) { color = it }
                 LabeledTextField("备注", note, { note = it }, singleLine = false)

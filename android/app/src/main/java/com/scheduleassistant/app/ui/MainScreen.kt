@@ -1,13 +1,11 @@
 package com.scheduleassistant.app.ui
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CalendarViewWeek
 import androidx.compose.material.icons.filled.ListAlt
@@ -21,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,7 +30,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import java.io.File
 import com.scheduleassistant.app.data.COURSE_COLORS
 import com.scheduleassistant.app.data.model.Countdown
 import com.scheduleassistant.app.data.model.Course
@@ -69,6 +73,7 @@ fun MainScreen(vm: MainViewModel) {
     var route by rememberSaveable { mutableStateOf("today") }
     var form by remember { mutableStateOf<OpenForm>(OpenForm.None) }
     val meta by vm.meta.collectAsState()
+    val settings by vm.settings.collectAsState()
 
     // 修复（M11）：跨午夜自动刷新顶栏日期与周次
     var dateStr by remember { mutableStateOf(nowDateStr()) }
@@ -86,26 +91,38 @@ fun MainScreen(vm: MainViewModel) {
         else -> "第 $idx 周 · ${if (idx % 2 == 1) "单周" else "双周"}"
     }
 
+    // ⑧ 背景图 + 半透明遮罩，内容浮于其上
+    Box(Modifier.fillMaxSize()) {
+        if (settings.background == "image" && settings.bgImage.isNotBlank()) {
+            AsyncImage(
+                model = if (settings.bgImage.startsWith("http")) settings.bgImage else File(settings.bgImage),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                Modifier.fillMaxSize().background(
+                    if (settings.theme == "dark") Color.Black.copy(alpha = 0.55f)
+                    else Color.White.copy(alpha = 0.5f)
+                )
+            )
+        }
+
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
+            // ① 精简顶栏：去掉"日程助手"标题与日历图标，只保留日期/周次
             TopAppBar(
                 title = {
-                    Column(verticalArrangement = Arrangement.Center) {
-                        Text("日程助手", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    Icon(
-                        Icons.Filled.CalendarMonth, null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, end = 8.dp)
+                    Text(
+                        "${dateStr} ${WEEKDAY_NAMES[wd - 1]} · $weekText",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         bottomBar = {
@@ -127,12 +144,10 @@ fun MainScreen(vm: MainViewModel) {
             }
         },
         floatingActionButton = {
-            if (route == "today" || route == "timetable" || route == "events") {
+            // ⑨ 课表改用"编辑模式"添加课程，去掉课表页 FAB
+            if (route == "today" || route == "events") {
                 FloatingActionButton(onClick = {
-                    when (route) {
-                        "today", "events" -> form = OpenForm.Event(null)
-                        "timetable" -> form = OpenForm.Course(null)
-                    }
+                    form = OpenForm.Event(null)
                 }) { Icon(Icons.Filled.Add, "添加") }
             }
         }
@@ -221,5 +236,6 @@ fun MainScreen(vm: MainViewModel) {
                 }
             }
         }
+    }
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.COURSE_COLORS
 
@@ -152,14 +153,14 @@ fun FormSectionTitle(text: String) {
     )
 }
 
-/** 表单字段之间的间距容器 */
+/** 表单字段之间的间距容器（④ 可通过 spacing 控制紧凑程度） */
 @Composable
-fun FormColumn(content: @Composable () -> Unit) {
+fun FormColumn(spacing: Dp = 12.dp, content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing)
     ) { content() }
 }
 
@@ -175,16 +176,26 @@ fun CardSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) 
     }
 }
 
-/** 点击触发的只读输入框（用于弹出系统日期/时间选择器） */
+/**
+ * 点击触发的只读输入框（用于弹出系统日期/时间选择器）。
+ * ④ 修复：readOnly TextField 会消费点击事件导致 onClick 不触发，
+ * 在输入框上层叠加透明点击层捕获点击。
+ */
 @Composable
 fun OutlinedClickField(value: String, onClick: () -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        readOnly = true,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        trailingIcon = { Icon(Icons.Filled.EditCalendar, contentDescription = null) }
-    )
+    Box {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = { Icon(Icons.Filled.EditCalendar, contentDescription = null) }
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { onClick() }
+        )
+    }
 }

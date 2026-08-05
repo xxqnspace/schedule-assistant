@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,16 +34,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scheduleassistant.app.data.model.Event
 import com.scheduleassistant.app.ui.MainViewModel
+import com.scheduleassistant.app.util.TimelineItem
 import com.scheduleassistant.app.util.WEEKDAY_NAMES
 import com.scheduleassistant.app.util.getDayOfWeek
 import com.scheduleassistant.app.util.getDayTimeline
 import com.scheduleassistant.app.util.nowDateStr
 import com.scheduleassistant.app.util.nowMillis
 import com.scheduleassistant.app.util.parseDateTimeTarget
+import com.scheduleassistant.app.util.timeToDate
 import kotlinx.coroutines.delay
+
+/** ③ 日程类型 -> 强调色（用户未自定义颜色时的默认配色） */
+private val EVENT_TYPE_COLORS = mapOf(
+    "work" to "#2563eb",
+    "meeting" to "#7c3aed",
+    "prepare" to "#16a34a",
+    "duty" to "#ea580c",
+    "other" to "#64748b"
+)
 
 @Composable
 fun TodayScreen(
@@ -82,27 +95,39 @@ fun TodayScreen(
         }
     }
 
+    // ③ 已完成判断：非全天且结束时间已过
+    fun itemDone(item: TimelineItem): Boolean {
+        if (item.allDay) return false
+        val endStr = item.end?.ifBlank { null } ?: item.start
+        val end = timeToDate(dateStr, endStr) ?: return false
+        return end.time < now
+    }
+
+    // ③ 已完成项排到当日最后，其余保持时间顺序
+    val ordered = remember(timeline, now) {
+        val (active, done) = timeline.partition { !itemDone(it) }
+        active + done
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        if (countdowns.isNotEmpty()) {
-            item { Text("倒计时", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 4.dp)) }
-            items(countdowns) { cd ->
-                CountdownCard(title = cd.title, target = cd.target, color = cd.color, now = now)
-            }
+        // ② 倒计时板块：去掉"倒计时"标题，直接展示卡片
+        items(countdowns) { cd ->
+            CountdownCard(title = cd.title, target = cd.target, color = cd.color, now = now)
         }
 
         item {
-            Spacer(Modifier.height(4.dp))
             Text(
                 "今日安排 · ${dateStr} ${WEEKDAY_NAMES[wd - 1]}",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 4.dp)
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }
 
-        if (timeline.isEmpty()) {
+        if (ordered.isEmpty()) {
             item {
                 Surface(
                     tonalElevation = 1.dp,
@@ -115,11 +140,25 @@ fun TodayScreen(
                 }
             }
         } else {
-            items(timeline) { item ->
+            items(ordered, key = { it.id }) { item ->
                 val isEvent = item.kind == "event"
-                val accent = runCatching { Color(android.graphics.Color.parseColor(item.color)) }
-                    .getOrDefault(MaterialTheme.colorScheme.primary)
+                val done = itemDone(item)
+                // ③ 不同类型分配不同颜色
+                val accent = if (isEvent) {
+                    runCatching { Color(android.graphics.Color.parseColor(EVENT_TYPE_COLORS[item.type] ?: item.color)) }
+                        .getOrDefault(MaterialTheme.colorScheme.primary)
+                } else {
+                    runCatching { Color(android.graphics.Color.parseColor(item.color)) }
+                        .getOrDefault(MaterialTheme.colorScheme.primary)
+                }
                 Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (done) {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
@@ -134,7 +173,7 @@ fun TodayScreen(
                 ) {
                     Row(Modifier.fillMaxWidth()) {
                         Box(
-                            Modifier.width(6.dp).fillMaxHeight().background(accent)
+                            Modifier.width(6.dp).fillMaxHeight().background(if (done) accent.copy(alpha = 0.35f) else accent)
                         )
                         Column(Modifier.padding(14.dp).fillMaxWidth()) {
                             Row(
@@ -145,14 +184,33 @@ fun TodayScreen(
                                 Text(
                                     item.title.ifBlank { "(无标题)" },
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
-                                Text(
-                                    if (item.allDay) "全天"
-                                    else listOfNotNull(item.start, item.end).joinToString(" - "),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Spacer(Modifier.width(8.dp))
+                                if (done) {
+                                    // ③ 已完成标签
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                    ) {
+                                        Text(
+                                            "已完成",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        if (item.allDay) "全天"
+                                        else listOfNotNull(item.start, item.end).joinToString(" - "),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             if (item.sectionName.isNotBlank()) {
                                 Text(item.sectionName, style = MaterialTheme.typography.labelSmall, color = accent)
@@ -173,56 +231,74 @@ fun TodayScreen(
     }
 }
 
+/**
+ * ② 倒计时卡片：单行式 "距离 {title} 还有 {N} 天"，剩余天数大字突出。
+ * 不足 1 天显示小时；格式错误/已结束有明确提示。
+ */
 @Composable
 private fun CountdownCard(title: String, target: String, color: String, now: Long) {
     val accent = runCatching { Color(android.graphics.Color.parseColor(color)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
     val targetDate = parseDateTimeTarget(target)
+    val name = title.ifBlank { "目标" }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            Box(Modifier.width(6.dp).fillMaxHeight().background(accent))
-            Column(Modifier.padding(14.dp).fillMaxWidth()) {
-                Text(title.ifBlank { "(无标题)" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                // 修复（L5）：目标时间格式非法时明确提示，而非误显示"已结束"
-                if (targetDate == null) {
-                    Text("时间格式错误", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .width(6.dp)
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(accent)
+            )
+            Spacer(Modifier.width(12.dp))
+            if (targetDate == null) {
+                Text("时间格式错误", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+            } else {
+                val diff = targetDate.time - now
+                if (diff <= 0) {
+                    Text("$name 已结束", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    val diff = targetDate.time - now
-                    if (diff <= 0) {
-                        Text("已结束", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        val totalSec = diff / 1000
-                        val days = totalSec / 86400
-                        val hours = (totalSec % 86400) / 3600
-                        val mins = (totalSec % 3600) / 60
-                        val secs = totalSec % 60
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TimeUnit(days, "天", accent)
-                            TimeUnit(hours, "时", accent)
-                            TimeUnit(mins, "分", accent)
-                            TimeUnit(secs, "秒", accent)
+                    val days = diff / 86_400_000L
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("距离 ", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Text(" 还有 ", style = MaterialTheme.typography.bodyLarge)
+                        if (days > 0) {
+                            Text(
+                                "$days",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Black,
+                                color = accent
+                            )
+                            Text(" 天", style = MaterialTheme.typography.bodyLarge)
+                        } else {
+                            val hours = diff / 3_600_000L
+                            Text(
+                                "$hours",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Black,
+                                color = accent
+                            )
+                            Text(" 小时", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TimeUnit(value: Long, unit: String, accent: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "%02d".format(value),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = accent
-        )
-        Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

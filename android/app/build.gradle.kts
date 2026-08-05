@@ -97,6 +97,9 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.13.1")
 
+    // ⑧ 背景图加载（URL / 本地文件）
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // 单元测试（L10）：ScheduleUtils/DateUtils 纯逻辑

@@ -35,6 +35,17 @@ class ScheduleUtilsTest {
     }
 
     @Test
+    fun `weekIndex 非周一开学按自然周到周日为一周`() {
+        // 2026-02-19 为周四开学
+        assertEquals(1, weekIndex("2026-02-19", "2026-02-19"))   // 开学当天 = 第 1 周
+        assertEquals(1, weekIndex("2026-02-22", "2026-02-19"))   // 周日仍在第 1 周
+        assertEquals(2, weekIndex("2026-02-23", "2026-02-19"))   // 下周一 = 第 2 周
+        assertEquals(2, weekIndex("2026-03-01", "2026-02-19"))   // 下周日 = 第 2 周
+        assertEquals(3, weekIndex("2026-03-02", "2026-02-19"))   // 再下周一 = 第 3 周
+        assertNull(weekIndex("2026-02-18", "2026-02-19"))        // 开学前 = 放假
+    }
+
+    @Test
     fun `effectiveParity 按查看周次奇偶返回`() {
         assertEquals("odd", effectiveParity(1, 3))
         assertEquals("even", effectiveParity(2, 3))

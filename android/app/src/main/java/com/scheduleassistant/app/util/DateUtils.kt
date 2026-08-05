@@ -52,8 +52,10 @@ fun addDays(dateStr: String, n: Int): String {
 fun dateOffsetStr(offsetDays: Int): String = LocalDate.now().plusDays(offsetDays.toLong()).toString()
 
 /**
- * 基于学期起始日（应为某周一）计算 1-based 周次；未设置锚点或日期非法返回 null。
- * 修复：用 ChronoUnit.DAYS.between 按自然日计算，DST 边界不偏差。
+ * 基于学期起始日计算 1-based 周次；未设置锚点或日期非法返回 null。
+ * ⑩ 重构：开学日不必是周一——开学日所在自然周到周日即第 1 周，
+ * 从下周一开始每满 7 天进入下一周。
+ * 例：周四开学 → 周四~周日为第 1 周，下周一~下周日为第 2 周。
  */
 fun weekIndex(dateStr: String, semesterStart: String): Int? {
     if (semesterStart.isBlank()) return null
@@ -61,7 +63,10 @@ fun weekIndex(dateStr: String, semesterStart: String): Int? {
     val cur = runCatching { LocalDate.parse(dateStr) }.getOrNull() ?: return null
     val diff = ChronoUnit.DAYS.between(start, cur)
     if (diff < 0) return null
-    return (diff / 7).toInt() + 1
+    val w0 = start.dayOfWeek.value // 1=周一..7=周日
+    val firstWeekDays = 7 - w0     // 开学日到本周日的天数差（0..6）
+    if (diff <= firstWeekDays) return 1
+    return 2 + (diff - (firstWeekDays + 1)) / 7
 }
 
 fun isOddWeek(idx: Int?): Boolean = idx != null && idx % 2 == 1
